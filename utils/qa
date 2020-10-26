@@ -1,0 +1,360 @@
+#!/usr/bin/env python3
+#
+# Copyright (c) 2020 Hans Jerry Illikainen <hji@dyntopia.com>
+#
+# SPDX-License-Identifier:
+
+import re
+import sys
+from argparse import ArgumentParser
+from contextlib import contextmanager
+from difflib import unified_diff
+from itertools import chain
+from logging import (
+    DEBUG,
+    INFO,
+    Formatter,
+    StreamHandler,
+    basicConfig,
+    debug,
+    error,
+)
+from os import X_OK, access, chdir, getcwd
+from pathlib import Path
+from subprocess import run
+
+
+class Backend:
+    header_extensions = (".h", ".hh", ".hpp", ".hxx")
+    source_extensions = (".c", ".cc", ".cpp", ".cxx")
+
+    def __init__(self, paths, build_path):
+        self._paths = paths
+        self._build_path = build_path
+
+    @staticmethod
+    def check():
+        return 0
+
+    @staticmethod
+    def fix():
+        return 0
+
+    @property
+    def sources(self):
+        return [p for p in self._paths if p.suffix in self.source_extensions]
+
+    @property
+    def headers(self):
+        return [p for p in self._paths if p.suffix in self.header_extensions]
+
+
+class CppCheck(Backend):
+    name = "cppcheck"
+
+    def check(self):
+        cfg = (Path("/") / "usr" / "share" / "cppcheck" / "cfg").rglob("*.cfg")
+
+        # Cppcheck has support for compile_commands.json.  However,
+        # cppcheck v1.86 seems too fragile to parse complex headers.
+        #
+        # TODO: reevaluate --project=compile_commands.json with newer
+        # versions of cppcheck.
+        p = call(
+            "cppcheck",
+            "--enable=all",
+            "--suppress=missingInclude",
+            "--error-exitcode=1",
+            "--inline-suppr",
+            "--template=gcc",
+            *[f"--library={c}" for c in cfg],
+            *self.sources,
+            *self.headers,
+        )
+        debug(p.stdout)
+        error(p.stderr)
+        return p.returncode
+
+
+class ClangTidy(Backend):
+    name = "clang-tidy"
+
+    def check(self):
+        p = call("clang-tidy", "-p", self._build_path, *self.sources)
+        error(p.stdout)
+        return p.returncode
+
+
+class ClangFormat(Backend):
+    name = "clang-format"
+    c = {
+        "assert.h",
+        "complex.h",
+        "ctype.h",
+        "errno.h",
+        "fenv.h",
+        "float.h",
+        "inttypes.h",
+        "iso646.h",
+        "limits.h",
+        "locale.h",
+        "math.h",
+        "setjmp.h",
+        "signal.h",
+        "stdalign.h",
+        "stdarg.h",
+        "stdatomic.h",
+        "stdbool.h",
+        "stddef.h",
+        "stdint.h",
+        "stdio.h",
+        "stdlib.h",
+        "stdnoreturn.h",
+        "string.h",
+        "tgmath.h",
+        "threads.h",
+        "time.h",
+        "uchar.h",
+        "wchar.h",
+        "wctype.h",
+    }
+    posix = {
+        "aio.h",
+        "arpa/inet.h",
+        "assert.h",
+        "complex.h",
+        "cpio.h",
+        "ctype.h",
+        "dirent.h",
+        "dlfcn.h",
+        "errno.h",
+        "fcntl.h",
+        "fenv.h",
+        "float.h",
+        "fmtmsg.h",
+        "fnmatch.h",
+        "ftw.h",
+        "glob.h",
+        "grp.h",
+        "iconv.h",
+        "inttypes.h",
+        "iso646.h",
+        "langinfo.h",
+        "libgen.h",
+        "limits.h",
+        "locale.h",
+        "math.h",
+        "monetary.h",
+        "mqueue.h",
+        "ndbm.h",
+        "net/if.h",
+        "netdb.h",
+        "netinet/in.h",
+        "netinet/tcp.h",
+        "nl_types.h",
+        "poll.h",
+        "pthread.h",
+        "pwd.h",
+        "regex.h",
+        "sched.h",
+        "search.h",
+        "semaphore.h",
+        "setjmp.h",
+        "signal.h",
+        "spawn.h",
+        "stdarg.h",
+        "stdbool.h",
+        "stddef.h",
+        "stdint.h",
+        "stdio.h",
+        "stdlib.h",
+        "string.h",
+        "strings.h",
+        "stropts.h",
+        "sys/ipc.h",
+        "sys/mman.h",
+        "sys/msg.h",
+        "sys/resource.h",
+        "sys/select.h",
+        "sys/sem.h",
+        "sys/shm.h",
+        "sys/socket.h",
+        "sys/stat.h",
+        "sys/statvfs.h",
+        "sys/time.h",
+        "sys/times.h",
+        "sys/types.h",
+        "sys/uio.h",
+        "sys/un.h",
+        "sys/utsname.h",
+        "sys/wait.h",
+        "syslog.h",
+        "tar.h",
+        "termios.h",
+        "tgmath.h",
+        "time.h",
+        "trace.h",
+        "ulimit.h",
+        "unistd.h",
+        "utime.h",
+        "utmpx.h",
+        "wchar.h",
+        "wctype.h",
+        "wordexp.h",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._write_config()
+
+    def check(self):
+        rc = 0
+        for path in self.sources + self.headers:
+            p = call("clang-format", path)
+            for line in diff(path, p.stdout):
+                error(line)
+                rc += 1
+            error(p.stderr)
+            rc += p.returncode
+        return rc
+
+    def fix(self):
+        rc = 0
+        for path in self.sources + self.headers:
+            p = call("clang-format", "-i", path)
+            error(p.stderr)
+            rc += p.returncode
+        return rc
+
+    def _write_config(self):
+        inp = Path(".clang-format.in")
+        outp = Path(".clang-format")
+
+        if not outp.exists() or inp.stat().st_mtime > outp.stat().st_mtime:
+            c = "^<" + "|".join(re.escape(x) for x in self.c) + ">$"
+            posix = "^<" + "|".join(re.escape(x) for x in self.posix) + ">$"
+            outp.write_text(
+                inp.read_text().replace("@C@", c).replace("@POSIX@", posix)
+            )
+
+
+class Coverage(Backend):
+    name = "coverage"
+
+    def check(self):
+        profraw = list(self._build_path.rglob("*.profraw"))
+        if not profraw:
+            return 1
+
+        profdata = self._build_path / "profdata"
+        p = call("llvm-profdata", "merge", "--output", profdata, *profraw)
+        if p.returncode:
+            return 1
+
+        objects = chain.from_iterable(
+            chain.from_iterable(
+                ["-object", bin_path]
+                for bin_path in raw_path
+                if bin_path.is_file() and access(bin_path, X_OK)
+            )
+            for raw_path in [p.parent.rglob("*") for p in profraw]
+        )
+
+        common = [
+            "-ignore-filename-regex=tests/",
+            "-instr-profile",
+            profdata,
+            f"-use-color={int(sys.stdout.isatty())}",
+            *objects,
+        ]
+
+        p = call("llvm-cov", "show", "-line-coverage-lt=100", *common)
+        debug(p.stdout)
+        debug(p.stderr)
+
+        p = call("llvm-cov", "report", *common)
+        error(p.stdout)
+        error(p.stderr)
+        return p.returncode
+
+
+class Handler(StreamHandler):
+    def emit(self, record):
+        record.msg = record.msg.rstrip()
+        if record.msg:
+            self.stream.write(self.format(record) + self.terminator)
+
+
+@contextmanager
+def cwd(path):
+    orig = getcwd()
+    try:
+        chdir(path)
+        yield
+    finally:
+        chdir(orig)
+
+
+def call(*args):
+    debug("running '%s'", " ".join(str(x) for x in args))
+    p = run(args, capture_output=True)
+    p.stdout = p.stdout.decode()
+    p.stderr = p.stderr.decode()
+    return p
+
+
+def project_root():
+    root = call("git", "rev-parse", "--show-toplevel").stdout.strip()
+    return Path(root)
+
+
+def project_paths():
+    paths = call("git", "ls-files", "--full-name", "-z").stdout
+    return [Path(p) for p in paths.split("\0")]
+
+
+def diff(path, other):
+    with path.open("r") as f:
+        return unified_diff(
+            f.read().split("\n"),
+            other.split("\n"),
+            fromfile=str(path),
+            tofile=str(path),
+            lineterm="",
+        )
+
+
+def parse_args():
+    ap = ArgumentParser()
+    ap.add_argument("--build-path", default=Path("build") / "debug", type=Path)
+    ap.add_argument("--debug", "-d", action="store_true")
+    ap.add_argument("--enable", "-e", action="append")
+    ap.add_argument("action", choices=["check", "fix"], nargs="*")
+    return ap.parse_args()
+
+
+def main():
+    args = parse_args()
+    handler = Handler()
+    handler.setFormatter(Formatter("%(message)s"))
+    basicConfig(handlers=[handler], level=DEBUG if args.debug else INFO)
+
+    rc = 0
+    with cwd(project_root()):
+        if not (args.build_path / "compile_commands.json").is_file():
+            error("missing compile_commands.json")
+            return 1
+
+        paths = project_paths()
+        for cls in [Coverage, ClangFormat, ClangTidy, CppCheck]:
+            if not args.enable or cls.name in args.enable:
+                ins = cls(paths, args.build_path)
+                if "fix" in args.action:
+                    rc += ins.fix()
+                if "check" in args.action:
+                    rc += ins.check()
+    return rc != 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

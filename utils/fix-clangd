@@ -1,0 +1,43 @@
+#!/usr/bin/env python3
+#
+# Copyright (c) 2020 Hans Jerry Illikainen <hji@dyntopia.com>
+#
+# SPDX-License-Identifier:
+
+import json
+import sys
+from argparse import ArgumentParser
+from pathlib import Path
+
+
+def fix_clangd(path):
+    with path.open("r+") as f:
+        data = json.load(f)
+        for elt in data:
+            # clangd 7 seems to think that all macros are unused when
+            # -Wunused-macros is enabled
+            elt["command"] += " -Wno-unused-macros"
+
+        f.seek(0)
+        f.truncate()
+        json.dump(data, f, indent=2)
+
+
+def parse_args():
+    ap = ArgumentParser()
+    ap.add_argument("path", type=Path)
+    return ap.parse_args()
+
+
+def main():
+    args = parse_args()
+    if not args.path.is_file():
+        print(f"{args.path} is not a file", file=sys.stderr)
+        return 1
+
+    fix_clangd(args.path)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

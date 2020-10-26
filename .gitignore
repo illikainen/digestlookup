@@ -1,0 +1,7 @@
+*.profraw
+.clang-format
+TAGS
+build/
+compile_commands.json
+digestlookup
+digestlookup-debug
