@@ -4,13 +4,8 @@
  * SPDX-License-Identifier:
  */
 
-#include <setjmp.h>
-#include <stdarg.h>
-#include <stddef.h>
-
-#include <cmocka.h>
-
 #include "dlp_cli.h"
+#include "test.h"
 
 static void test_cli(void **state)
 {
