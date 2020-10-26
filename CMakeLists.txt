@@ -134,6 +134,13 @@ if(NOT PKG_CONFIG_FOUND)
     message(FATAL_ERROR "Cannot find pkg-config")
 endif()
 
+pkg_check_modules(GLIB glib-2.0)
+if(NOT GLIB_FOUND)
+    message(FATAL_ERROR "Cannot find GLib")
+endif()
+include_directories(SYSTEM ${GLIB_INCLUDE_DIRS})
+link_libraries(${GLIB_LINK_LIBRARIES})
+
 #
 # Transpile config.h.
 #
