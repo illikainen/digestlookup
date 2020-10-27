@@ -2,10 +2,10 @@
 AlignTrailingComments: false
 AllowAllParametersOfDeclarationOnNextLine: false
 AllowShortFunctionsOnASingleLine: false
-BinPackParameters: false
 BreakBeforeBraces: Linux
 BreakBeforeTernaryOperators: false
 ColumnLimit: 80
+ContinuationIndentWidth: 0
 Cpp11BracedListStyle: false
 IncludeBlocks: Regroup
 IncludeCategories:
@@ -19,6 +19,7 @@ IncludeCategories:
     Priority: 40
 IndentPPDirectives: AfterHash
 IndentWidth: 4
+PenaltyBreakAssignment: 150
 PenaltyBreakBeforeFirstCallParameter: 150
 PenaltyBreakComment: 10
 PenaltyBreakString: 10
