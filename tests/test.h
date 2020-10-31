@@ -11,8 +11,12 @@
 #include <stdarg.h>
 #include <stddef.h>
 
+#include <sys/stat.h>
+
 #include <cmocka.h>
 #include <glib.h>
+
+#include "dlp_overflow.h"
 
 #define TEST_ARRAY_LEN(a) (sizeof(a) / sizeof(*(a)))
 
@@ -25,6 +29,7 @@
         assert_true(g_pattern_match_simple(err_pattern, (err)->message));      \
         g_free(err_pattern);                                                   \
         g_error_free(err);                                                     \
+        err = NULL;                                                            \
     } while (0)
 
 #define TEST_ASSERT_FD_CONTENT(fd, ...)                                        \

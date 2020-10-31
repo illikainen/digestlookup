@@ -28,7 +28,12 @@ project(digestlookup VERSION 0.0.0 LANGUAGES C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 include(AddFlag)
 include(CheckIPOSupported)
+include(FindCURL)
+include(FindGnuTLS)
+include(FindOpenSSL)
 include(FindPkgConfig)
+include(FindThreads)
+include(GetPrerequisites)
 
 #
 # Default to release builds.
@@ -140,6 +145,72 @@ if(NOT GLIB_FOUND)
 endif()
 include_directories(SYSTEM ${GLIB_INCLUDE_DIRS})
 link_libraries(${GLIB_LINK_LIBRARIES})
+
+if(NOT CURL_FOUND)
+    message(FATAL_ERROR "Cannot find Curl")
+endif()
+include_directories(${CURL_INCLUDE_DIRS})
+link_libraries(${CURL_LIBRARIES})
+
+foreach(curl_lib ${CURL_LIBRARIES})
+    get_prerequisites(${curl_lib} curl_deps 0 0 "" "")
+
+    foreach(curl_dep ${curl_deps})
+        if(curl_dep MATCHES ".*ssl.*")
+            set(CURL_WITH_OPENSSL 1)
+        endif()
+
+        if(curl_dep MATCHES ".*gnutls.*")
+            set(CURL_WITH_GNUTLS 1)
+        endif()
+
+        # FIXME: check if curl is built with a threaded resolver on
+        # non-POSIX systems!
+        if(curl_dep MATCHES ".*pthread.*")
+            set(CURL_WITH_PTHREADS 1)
+        endif()
+    endforeach()
+endforeach()
+
+# OpenSSL is thread safe from version 1.1.0.  Note to self: make sure that
+# OPENSSL_THREADS is defined.
+#
+# See:
+# - https://curl.haxx.se/libcurl/c/threadsafe.html
+if(CURL_WITH_OPENSSL AND OPENSSL_FOUND)
+    if(OPENSSL_VERSION VERSION_LESS 1.1.0)
+        message(FATAL_ERROR "Curl with OpenSSL requires OpenSSL >=1.1.0")
+    endif()
+
+    add_compile_definitions(HAVE_OPENSSL)
+    include_directories(${OPENSSL_INCLUDE_DIR})
+endif()
+
+# GnuTLS prior to 3.3.0 require explicit initialization.  Not sure if Curl
+# handles that or if it's up to the user so we lazily bail.  GnuTLS <3.3.0 was
+# released in 2014 and most users seem to link against OpenSSL anyway.
+#
+# See:
+# - https://gnutls.org/manual/html_node/Thread-safety.html
+if(CURL_WITH_GNUTLS AND GNUTLS_FOUND AND
+   GNUTLS_VERSION_STRING VERSION_LESS 3.3.0)
+    message(FATAL_ERROR "Curl with GnuTLS requires GnuTLS >=3.3.0")
+endif()
+
+# Curl uses a threaded resolver by default if it's linked against POSIX
+# or Windows threads.  This check bails if neither thread library is
+# available.  Support for c-ares is currently ignored.
+#
+# See:
+# - https://curl.haxx.se/libcurl/c/threadsafe.html
+# - https://github.com/curl/curl/blob/curl-7_64_0/m4/curl-confopts.m4
+# - https://github.com/curl/curl/blob/curl-7_64_0/configure.ac#L3866
+if(NOT CMAKE_THREAD_LIBS_INIT OR
+   NOT ((CMAKE_USE_PTHREADS_INIT AND CURL_WITH_PTHREADS) OR
+        CMAKE_USE_WIN32_THREADS_INIT))
+    message(FATAL_ERROR "No appropriate threading library found")
+endif()
+link_libraries(${CMAKE_THREAD_LIBS_INIT})
 
 #
 # Transpile config.h.
