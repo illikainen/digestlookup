@@ -9,6 +9,7 @@
 
 #include <setjmp.h>
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stddef.h>
 
 #include <sys/stat.h>
@@ -57,5 +58,7 @@
         }                                                                      \
         g_free(fd_str);                                                        \
     } while (0)
+
+bool test_setup_home(char **path);
 
 #endif /* TEST_H */

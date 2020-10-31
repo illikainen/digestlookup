@@ -16,11 +16,12 @@ file(GLOB_RECURSE tests
 file(GLOB_RECURSE utils
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_DEPENDS
-    "dlp_*.c")
+    "test.c" "dlp_*.c")
 
 add_library(${PROJECT_NAME}_test_static STATIC ${utils})
 target_compile_definitions(${PROJECT_NAME}_test_static
-    PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}")
+    PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}"
+    PUBLIC BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 target_include_directories(${PROJECT_NAME}_test_static
     SYSTEM PUBLIC ${CMOCKA_INCLUDE_DIRS}
     SYSTEM PUBLIC ${LIBMICROHTTPD_INCLUDE_DIRS})
