@@ -8,7 +8,7 @@
 
 #include <errno.h>
 
-#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <glib/gi18n.h>
@@ -17,6 +17,50 @@
 #include "dlp_error.h"
 
 static bool dlp_fs_user_dir(const char *base, char **path, GError **error);
+static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
+                           void *data, GError **error);
+
+/**
+ * Traverse a file hierarchy.
+ *
+ * @param path  Beginning of the walk.
+ * @param cb    Callback to invoke for each element in the tree.  Ownership is
+ *              retained for every argument other than the user-provided data.
+ * @param data  User data to pass to the callback.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_walk(const char *path, dlp_fs_walk_cb cb, void *data,
+                 GError **error)
+{
+    static GMutex lock;
+    struct stat s;
+    int fd;
+    bool rv;
+
+    g_return_val_if_fail(path != NULL && cb != NULL, false);
+
+    errno = 0;
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    if ((fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)) == -1) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        return false;
+    }
+
+    errno = 0;
+    if (fstat(fd, &s) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        close(fd); /* return code ignored */
+        return false;
+    }
+
+    g_mutex_lock(&lock);
+    rv = dlp_fs_walk_do(fd, path, cb, data, error) &&
+         cb(AT_FDCWD, path, path, &s, data, error);
+    g_mutex_unlock(&lock);
+
+    return rv;
+}
 
 /**
  * Recursively create a directory if it doesn't exist.
@@ -119,5 +163,89 @@ static bool dlp_fs_user_dir(const char *base, char **path, GError **error)
         return false;
     }
 
+    return true;
+}
+
+/**
+ * Traverse a file hierarchy.
+ *
+ * @param fd    Directory file descriptor.  Ownership is transferred; any
+ *              attempt to close it or modify its state is undefined behavior,
+ *              see POSIX.1-2017 on fdopendir.
+ * @param path  Current filename relative to the beginning of the walk.
+ * @param cb    Callback to invoke for each element in the tree.  Ownership is
+ *              retained for every argument other than the user-provided data.
+ * @param data  User data to pass to the callback.
+ * @return True on success and false on failure.
+ */
+static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
+                           void *data, GError **error)
+{
+    DIR *dir;
+    int cfd;
+    char *walkpath;
+    struct stat s;
+    struct dirent *de;
+
+    errno = 0;
+    if ((dir = fdopendir(fd)) == NULL) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        return false;
+    }
+
+    /* cppcheck-suppress readdirCalled */
+    while ((errno = 0) == 0 && (de = readdir(dir)) != NULL) {
+        if (!g_strcmp0(de->d_name, ".") || !g_strcmp0(de->d_name, "..")) {
+            continue;
+        }
+
+        walkpath = g_build_filename(path, de->d_name, NULL);
+
+        errno = 0;
+        if (fstatat(fd, de->d_name, &s, AT_SYMLINK_NOFOLLOW) != 0) {
+            g_set_error(error, DLP_ERROR, errno, "%s: %s", walkpath,
+                        g_strerror(errno));
+            g_free(walkpath);
+            closedir(dir); /* return code ignored */
+            return false;
+        }
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        if (S_ISDIR(s.st_mode)) {
+            errno = 0;
+            /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+            cfd = openat(fd, de->d_name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
+            if (cfd == -1) {
+                g_set_error(error, DLP_ERROR, errno, "%s: %s", walkpath,
+                            g_strerror(errno));
+                g_free(walkpath);
+                closedir(dir); /* return code ignored */
+                return false;
+            }
+
+            if (!dlp_fs_walk_do(cfd, walkpath, cb, data, error)) {
+                g_free(walkpath);
+                closedir(dir); /* return code ignored */
+                return false;
+            }
+        }
+
+        if (!cb(fd, de->d_name, walkpath, &s, data, error)) {
+            g_free(walkpath);
+            closedir(dir); /* return code ignored */
+            return false;
+        }
+
+        g_free(walkpath);
+    }
+
+    errno = 0;
+    if (closedir(dir) != 0) {
+        if (error != NULL && *error == NULL) {
+            g_set_error(error, DLP_ERROR, errno, "%s: %s", path,
+                        g_strerror(errno));
+        }
+        return false;
+    }
     return true;
 }
