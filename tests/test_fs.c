@@ -19,6 +19,7 @@ enum test_fs_error {
 
 struct state {
     char *home;
+    char orig_cwd[PATH_MAX];
 };
 
 struct walk_data {
@@ -34,6 +35,11 @@ static int group_setup(void **state)
     s = g_malloc0(sizeof(*s));
 
     if (!test_setup_home(&s->home)) {
+        g_free(s);
+        return -1;
+    }
+
+    if (getcwd(s->orig_cwd, sizeof(s->orig_cwd)) == NULL) {
         g_free(s);
         return -1;
     }
@@ -57,7 +63,7 @@ static int group_teardown(void **state)
     int rv;
     struct state *s = *state;
 
-    rv = chdir(s->home);
+    rv = chdir(s->orig_cwd);
 
     g_free(s->home);
     g_free(s);
