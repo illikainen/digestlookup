@@ -149,7 +149,7 @@ link_libraries(${GLIB_LINK_LIBRARIES})
 if(NOT CURL_FOUND)
     message(FATAL_ERROR "Cannot find Curl")
 endif()
-include_directories(${CURL_INCLUDE_DIRS})
+include_directories(SYSTEM ${CURL_INCLUDE_DIRS})
 link_libraries(${CURL_LIBRARIES})
 
 foreach(curl_lib ${CURL_LIBRARIES})
@@ -183,7 +183,7 @@ if(CURL_WITH_OPENSSL AND OPENSSL_FOUND)
     endif()
 
     add_compile_definitions(HAVE_OPENSSL)
-    include_directories(${OPENSSL_INCLUDE_DIR})
+    include_directories(SYSTEM ${OPENSSL_INCLUDE_DIR})
 endif()
 
 # GnuTLS prior to 3.3.0 require explicit initialization.  Not sure if Curl
