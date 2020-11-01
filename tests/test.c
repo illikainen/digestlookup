@@ -37,7 +37,7 @@ bool test_setup_home(char **path)
         return false;
     }
 
-    if (setenv("HOME", p, 1) != 0) {
+    if (setenv("HOME", p, 1) != 0 || setenv("DLP_TEST_HOME", p, 1) != 0) {
         free(p);
         return false;
     }
