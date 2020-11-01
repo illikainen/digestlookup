@@ -19,6 +19,8 @@
 static bool dlp_fs_user_dir(const char *base, char **path, GError **error);
 static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
                            void *data, GError **error);
+static bool dlp_fs_rmdir_cb(int fd, const char *name, const char *path,
+                            const struct stat *s, void *data, GError **error);
 
 /**
  * Traverse a file hierarchy.
@@ -98,6 +100,18 @@ bool dlp_fs_mkdir(const char *path, GError **error)
     }
 
     return true;
+}
+
+/**
+ * Recursively remove a directory.
+ *
+ * @param path  Directory to remove.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_rmdir(const char *path, GError **error)
+{
+    return dlp_fs_walk(path, dlp_fs_rmdir_cb, NULL, error);
 }
 
 /**
@@ -245,6 +259,27 @@ static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
             g_set_error(error, DLP_ERROR, errno, "%s: %s", path,
                         g_strerror(errno));
         }
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Remove an entry in a file hierarchy.
+ *
+ * See dlp_fs_walk_do() for an explanation of the parameters.
+ */
+static bool dlp_fs_rmdir_cb(int fd, const char *name, const char *path,
+                            const struct stat *s, void *data, GError **error)
+{
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    int flags = S_ISDIR(s->st_mode) ? AT_REMOVEDIR : 0;
+
+    (void)data;
+
+    errno = 0;
+    if (unlinkat(fd, name, flags) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
         return false;
     }
     return true;

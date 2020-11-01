@@ -130,6 +130,8 @@ static void test_walk_cb_failure(void **state)
 
     assert_false(dlp_fs_walk("foo", test_walk_retval_cb, &wd, &err));
     TEST_ASSERT_ERR(err, TEST_FS_ERROR_FAILED, "foobar");
+
+    assert_true(dlp_fs_rmdir("foo", NULL));
 }
 
 /*
@@ -189,6 +191,9 @@ static void test_walk_filelist(void **state)
 
     g_list_free(want);
     g_list_free_full(got, g_free);
+
+    assert_true(dlp_fs_rmdir("a", NULL));
+    assert_true(dlp_fs_rmdir("b", NULL));
 }
 
 static void test_user_dir(void **state)
@@ -265,11 +270,70 @@ static void test_mkdir(void **state)
     g_free(sp);
 }
 
+/*
+ * FIXME: hardcoded path separator.
+ */
+static void test_rmdir(void **state)
+{
+    struct stat s;
+    GError *err = NULL;
+
+    (void)state;
+
+    /* missing directory */
+    assert_false(dlp_fs_rmdir("a", &err));
+    TEST_ASSERT_ERR(err, ENOENT, "*");
+
+    /* empty directory */
+    assert_true(dlp_fs_mkdir("a", NULL));
+    assert_true(dlp_fs_rmdir("a", &err));
+    assert_null(err);
+    assert_int_not_equal(stat("a", &s), 0);
+
+    /* directory with subdirectories, files and symlinks */
+    assert_true(dlp_fs_mkdir("a", NULL));
+    assert_true(dlp_fs_mkdir("b", NULL));
+    assert_true(g_file_set_contents("b/abc", "xyz", -1, NULL));
+    assert_int_equal(symlink("../b", "a/dirlink"), 0);
+    assert_int_equal(symlink("../b/abc", "a/filelink"), 0);
+    assert_int_equal(symlink("../b/missing", "a/brokenlink"), 0);
+    assert_int_equal(symlink("cycle2", "a/cycle1"), 0);
+    assert_int_equal(symlink("cycle1", "a/cycle2"), 0);
+    assert_true(dlp_fs_mkdir("a/foo/bar/baz/qux", NULL));
+    assert_true(g_file_set_contents("a/foo/bar/baz/qux/a", "a", -1, NULL));
+    assert_true(g_file_set_contents("a/foo/bar/baz/qux/b", "b", -1, NULL));
+    assert_true(g_file_set_contents("a/foo/bar/baz/qux/c", "c", -1, NULL));
+    assert_true(g_file_set_contents("a/foo/bar/d", "d", -1, NULL));
+
+    /* successful removal of a */
+    assert_true(dlp_fs_rmdir("a", &err));
+    assert_null(err);
+    assert_int_not_equal(stat("a", &s), 0);
+    assert_int_equal(stat("b", &s), 0);
+    assert_int_equal(stat("b/abc", &s), 0);
+
+    /* failed removal of b */
+    assert_true(dlp_fs_mkdir("b/c/d", NULL));
+    assert_int_equal(chmod("b/c/d", 0), 0);
+    assert_false(dlp_fs_rmdir("b", &err));
+    TEST_ASSERT_ERR(err, EACCES, "*denied*");
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(chmod("b/c/d", S_IRWXU), 0);
+    assert_int_equal(stat("b", &s), 0);
+    assert_int_equal(stat("b/c/d", &s), 0);
+
+    /* successful removal of b */
+    assert_true(dlp_fs_rmdir("b", &err));
+    assert_null(err);
+    assert_int_not_equal(stat("b", &s), 0);
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_user_dir),
         cmocka_unit_test(test_mkdir),
+        cmocka_unit_test(test_rmdir),
         cmocka_unit_test(test_walk_symlink),
         cmocka_unit_test(test_walk_cb_failure),
         cmocka_unit_test(test_walk_filelist),
