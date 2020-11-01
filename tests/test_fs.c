@@ -7,6 +7,7 @@
 #include <errno.h>
 
 #include <sys/stat.h>
+#include <unistd.h>
 
 #include "dlp_fs.h"
 #include "test.h"
@@ -17,11 +18,22 @@ struct state {
 
 static int group_setup(void **state)
 {
+    const char *cwd;
     struct state *s;
 
-    s = g_malloc(sizeof(*s));
+    s = g_malloc0(sizeof(*s));
 
     if (!test_setup_home(&s->home)) {
+        g_free(s);
+        return -1;
+    }
+
+    if ((cwd = g_getenv("DLP_TEST_HOME")) == NULL) {
+        g_free(s);
+        return -1;
+    }
+
+    if (chdir(cwd) != 0) {
         g_free(s);
         return -1;
     }
@@ -32,11 +44,15 @@ static int group_setup(void **state)
 
 static int group_teardown(void **state)
 {
+    int rv;
     struct state *s = *state;
+
+    rv = chdir(s->home);
 
     g_free(s->home);
     g_free(s);
-    return 0;
+
+    return rv;
 }
 
 static void test_user_dir(void **state)
