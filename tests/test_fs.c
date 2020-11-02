@@ -337,6 +337,128 @@ static void test_rmdir(void **state)
     assert_int_not_equal(stat("b", &s), 0);
 }
 
+static void test_preload_walk_fdopendir(void **state)
+{
+    GError *err = NULL;
+    struct walk_data wd = { .rv = true };
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_mkdir("fdopendir", NULL));
+        assert_int_equal(setenv("DLP_PRELOAD_FDOPENDIR_RV", "-1", 1), 0);
+        assert_false(dlp_fs_walk("fdopendir", test_walk_retval_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, EACCES, "*denied*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_FDOPENDIR_RV"), 0);
+        assert_int_equal(rmdir("fdopendir"), 0);
+    }
+}
+
+static void test_preload_walk_closedir(void **state)
+{
+    GError *err = NULL;
+    struct walk_data wd = { .rv = true };
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_mkdir("closedir", NULL));
+        assert_int_equal(setenv("DLP_PRELOAD_CLOSEDIR_RV", "-1", 1), 0);
+        assert_false(dlp_fs_walk("closedir", test_walk_retval_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, EACCES, "*denied*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_CLOSEDIR_RV"), 0);
+        assert_int_equal(rmdir("closedir"), 0);
+    }
+}
+
+static void test_preload_walk_fstat(void **state)
+{
+    GError *err = NULL;
+    struct walk_data wd = { .rv = true };
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_mkdir("fstat", NULL));
+        assert_int_equal(setenv("DLP_PRELOAD_FSTAT_RV", "-1", 1), 0);
+        assert_false(dlp_fs_walk("fstat", test_walk_retval_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, EACCES, "*denied*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_FSTAT_RV"), 0);
+        assert_int_equal(rmdir("fstat"), 0);
+    }
+}
+
+/*
+ * FIXME: hardcoded path separator.
+ */
+static void test_preload_walk_fstatat(void **state)
+{
+    GError *err = NULL;
+    struct walk_data wd = { .rv = true };
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_mkdir("fstatat/foo", NULL));
+        assert_int_equal(setenv("DLP_PRELOAD_FSTATAT_RV", "-1", 1), 0);
+        assert_false(dlp_fs_walk("fstatat", test_walk_retval_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, EACCES, "*denied*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_FSTATAT_RV"), 0);
+        assert_true(dlp_fs_rmdir("fstatat", NULL));
+    }
+}
+
+static void test_preload_rmdir_unlinkat(void **state)
+{
+    struct stat s;
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_mkdir("unlinkat", NULL));
+        assert_int_equal(setenv("DLP_PRELOAD_UNLINKAT_RV", "1", 1), 0);
+        assert_false(dlp_fs_rmdir("unlinkat", &err));
+        TEST_ASSERT_ERR(err, EACCES, "*denied*");
+        assert_int_equal(stat("unlinkat", &s), 0);
+        assert_int_equal(unsetenv("DLP_PRELOAD_UNLINKAT_RV"), 0);
+        assert_true(dlp_fs_rmdir("unlinkat", NULL));
+    }
+}
+
+static void test_preload_mkdir_stat(void **state)
+{
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_int_equal(setenv("DLP_PRELOAD_STAT_RV", "-1", 1), 0);
+        assert_false(dlp_fs_mkdir("stat", &err));
+        TEST_ASSERT_ERR(err, EACCES, "*denied*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_STAT_RV"), 0);
+    }
+}
+
+static void test_preload_mkdir_owner(void **state)
+{
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_int_equal(setenv("DLP_PRELOAD_GETUID_RV", "12345", 1), 0);
+        assert_false(dlp_fs_mkdir("getuid", &err));
+        TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_GETUID_RV"), 0);
+
+        assert_int_equal(setenv("DLP_PRELOAD_GETGID_RV", "12345", 1), 0);
+        assert_false(dlp_fs_mkdir("getgid", &err));
+        TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_GETGID_RV"), 0);
+    }
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -346,6 +468,13 @@ int main(void)
         cmocka_unit_test(test_walk_symlink),
         cmocka_unit_test(test_walk_cb_failure),
         cmocka_unit_test(test_walk_filelist),
+        cmocka_unit_test(test_preload_walk_fdopendir),
+        cmocka_unit_test(test_preload_walk_closedir),
+        cmocka_unit_test(test_preload_walk_fstat),
+        cmocka_unit_test(test_preload_walk_fstatat),
+        cmocka_unit_test(test_preload_rmdir_unlinkat),
+        cmocka_unit_test(test_preload_mkdir_stat),
+        cmocka_unit_test(test_preload_mkdir_owner),
     };
 
     return cmocka_run_group_tests(tests, group_setup, group_teardown);

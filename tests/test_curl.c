@@ -643,6 +643,36 @@ static void test_write_fd(void **state)
     g_free(buf);
 }
 
+static void test_preload_global_init(void **state)
+{
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_int_equal(setenv("DLP_PRELOAD_CURL_GLOBAL_INIT_RV", "1", 1), 0);
+        assert_false(dlp_curl_global_init(&err));
+        TEST_ASSERT_ERR(err, DLP_CURL_ERROR_FAILED, "*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_CURL_GLOBAL_INIT_RV"), 0);
+    }
+}
+
+static void test_preload_init(void **state)
+{
+    CURL *curl;
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_int_equal(setenv("DLP_PRELOAD_CURL_EASY_INIT_RV", "1", 1), 0);
+        assert_false(dlp_curl_init(&curl, &err));
+        assert_null(curl);
+        TEST_ASSERT_ERR(err, DLP_CURL_ERROR_FAILED, "*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_CURL_EASY_INIT_RV"), 0);
+    }
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
@@ -662,6 +692,8 @@ int main(void)
         cmocka_unit_test_setup_teardown(test_multi_404, setup, teardown),
         cmocka_unit_test_setup_teardown(test_multi_reuse, setup, teardown),
         cmocka_unit_test_setup_teardown(test_write_fd, setup, teardown),
+        cmocka_unit_test(test_preload_global_init),
+        cmocka_unit_test(test_preload_init),
     };
 
     assert_true(dlp_curl_global_init(NULL));

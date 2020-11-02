@@ -18,6 +18,26 @@ file(GLOB_RECURSE utils
     CONFIGURE_DEPENDS
     "test.c" "dlp_*.c")
 
+# Clang CFI requires LTO.  However, LTO seems incompatible with symbol wrapping
+# in GNU ld [1][2].
+#
+# LD_PRELOAD also seems broken with CFI, but CFI can be disabled for only the
+# preload library.  So, LD_PRELOAD is currently used for mocking.  Meh...
+#
+# See:
+# [1] https://bugzilla.redhat.com/show_bug.cgi?id=1693831
+# [2] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88643
+list(REMOVE_ITEM utils "dlp_preload.c")
+set(preload ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}_preload.so)
+add_library(${PROJECT_NAME}_preload SHARED dlp_preload.c)
+target_compile_definitions(${PROJECT_NAME}_preload
+    PRIVATE -D_GNU_SOURCE)
+target_compile_options(${PROJECT_NAME}_preload
+    PRIVATE -fno-sanitize=cfi
+    PRIVATE -fvisibility=default)
+target_link_options(${PROJECT_NAME}_preload
+    PRIVATE -Wl,-z,undefs)
+
 add_library(${PROJECT_NAME}_test_static STATIC ${utils})
 target_compile_definitions(${PROJECT_NAME}_test_static
     PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}"
@@ -38,5 +58,6 @@ foreach(test ${tests})
     add_test(${test_bin} ${test_bin})
     target_link_libraries(${test_bin} PRIVATE ${PROJECT_NAME}_test_static)
     set_tests_properties(${test_bin} PROPERTIES
-        ENVIRONMENT G_DEBUG=fatal-warnings)
+        ENVIRONMENT G_DEBUG=fatal-warnings
+        ENVIRONMENT LD_PRELOAD=${preload})
 endforeach()
