@@ -19,6 +19,7 @@ enum test_fs_error {
 
 struct state {
     char *home;
+    char *cwd;
     char orig_cwd[PATH_MAX];
 };
 
@@ -29,7 +30,6 @@ struct walk_data {
 
 static int group_setup(void **state)
 {
-    const char *cwd;
     struct state *s;
 
     s = g_malloc0(sizeof(*s));
@@ -44,12 +44,13 @@ static int group_setup(void **state)
         return -1;
     }
 
-    if ((cwd = g_getenv("DLP_TEST_HOME")) == NULL) {
+    if ((s->cwd = g_strdup(g_getenv("DLP_TEST_HOME"))) == NULL) {
         g_free(s);
         return -1;
     }
 
-    if (chdir(cwd) != 0) {
+    if (chdir(s->cwd) != 0) {
+        g_free(s->cwd);
         g_free(s);
         return -1;
     }
@@ -64,11 +65,13 @@ static int group_teardown(void **state)
     struct state *s = *state;
 
     rv = chdir(s->orig_cwd);
+    rv += dlp_fs_rmdir(s->cwd, NULL);
 
+    g_free(s->cwd);
     g_free(s->home);
     g_free(s);
 
-    return rv;
+    return rv != 0;
 }
 
 static bool test_walk_retval_cb(int fd, const char *name, const char *path,
