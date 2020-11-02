@@ -20,6 +20,7 @@
 #include "dlp_overflow.h"
 
 typedef DIR *(*fdopendir_fn)(int fd);
+typedef struct dirent *(*readdir_fn)(DIR *dir);
 typedef int (*closedir_fn)(DIR *dir);
 typedef uid_t (*getuid_fn)(void);
 typedef uid_t (*getgid_fn)(void);
@@ -109,6 +110,24 @@ DIR *fdopendir(int fd)
     }
 
     return fn(fd);
+}
+
+/* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */
+struct dirent *readdir(DIR *dir)
+{
+    static readdir_fn fn;
+    int rv;
+
+    if (fn == NULL) {
+        fn = (readdir_fn)dlp_preload_sym("readdir");
+    }
+
+    if (dlp_preload_get_int("readdir_rv", &rv) && rv != 0) {
+        errno = EOVERFLOW;
+        return NULL;
+    }
+
+    return fn(dir);
 }
 
 /* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */

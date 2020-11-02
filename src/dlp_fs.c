@@ -253,12 +253,15 @@ static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
         g_free(walkpath);
     }
 
+    if (errno != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        closedir(dir); /* return code ignored */
+        return false;
+    }
+
     errno = 0;
     if (closedir(dir) != 0) {
-        if (error != NULL && *error == NULL) {
-            g_set_error(error, DLP_ERROR, errno, "%s: %s", path,
-                        g_strerror(errno));
-        }
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
         return false;
     }
     return true;

@@ -354,6 +354,23 @@ static void test_preload_walk_fdopendir(void **state)
     }
 }
 
+static void test_preload_walk_readdir(void **state)
+{
+    GError *err = NULL;
+    struct walk_data wd = { .rv = true };
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_mkdir("readdir", NULL));
+        assert_int_equal(setenv("DLP_PRELOAD_READDIR_RV", "-1", 1), 0);
+        assert_false(dlp_fs_walk("readdir", test_walk_retval_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, EOVERFLOW, "*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_READDIR_RV"), 0);
+        assert_int_equal(rmdir("readdir"), 0);
+    }
+}
+
 static void test_preload_walk_closedir(void **state)
 {
     GError *err = NULL;
@@ -469,6 +486,7 @@ int main(void)
         cmocka_unit_test(test_walk_cb_failure),
         cmocka_unit_test(test_walk_filelist),
         cmocka_unit_test(test_preload_walk_fdopendir),
+        cmocka_unit_test(test_preload_walk_readdir),
         cmocka_unit_test(test_preload_walk_closedir),
         cmocka_unit_test(test_preload_walk_fstat),
         cmocka_unit_test(test_preload_walk_fstatat),
