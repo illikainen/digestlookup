@@ -25,6 +25,7 @@ bool dlp_fs_walk(const char *path, dlp_fs_walk_cb cb, void *data,
                  GError **error);
 bool dlp_fs_mkdir(const char *path, GError **error);
 bool dlp_fs_rmdir(const char *path, GError **error);
+bool dlp_fs_mkdtemp(char **path, GError **error);
 bool dlp_fs_cache_dir(char **path, GError **error);
 bool dlp_fs_config_dir(char **path, GError **error);
 bool dlp_fs_data_dir(char **path, GError **error);

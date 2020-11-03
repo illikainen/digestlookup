@@ -24,6 +24,7 @@ typedef struct dirent *(*readdir_fn)(DIR *dir);
 typedef int (*closedir_fn)(DIR *dir);
 typedef uid_t (*getuid_fn)(void);
 typedef uid_t (*getgid_fn)(void);
+typedef char *(*mkdtemp_fn)(char *template);
 typedef int (*unlinkat_fn)(int fd, const char *path, int flag);
 typedef int (*__fxstat_fn)(int ver, int fd, struct stat *s);
 typedef int (*__fxstatat_fn)(int ver, int fd, const char *path, struct stat *s,
@@ -181,6 +182,24 @@ uid_t getgid(void)
     }
 
     return fn();
+}
+
+/* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */
+char *mkdtemp(char *template)
+{
+    static mkdtemp_fn fn;
+    error_t err;
+
+    if (fn == NULL) {
+        fn = (mkdtemp_fn)dlp_preload_sym("mkdtemp");
+    }
+
+    if (dlp_preload_get_int("mkdtemp_errno", &err)) {
+        errno = err;
+        return NULL;
+    }
+
+    return fn(template);
 }
 
 /* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */

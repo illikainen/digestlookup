@@ -6,6 +6,7 @@
 
 #include <errno.h>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -337,6 +338,40 @@ static void test_rmdir(void **state)
     assert_int_not_equal(stat("b", &s), 0);
 }
 
+static void test_mkdtemp(void **state)
+{
+    char *cache;
+    char *path;
+    struct stat st;
+    GError *err = NULL;
+    struct state *s = *state;
+
+    /* param failure */
+    assert_false(dlp_fs_mkdtemp(NULL, NULL));
+    assert_false(dlp_fs_mkdtemp(NULL, &err));
+
+    /* permission failure */
+    assert_true(dlp_fs_cache_dir(&cache, NULL));
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(chmod(cache, S_IRWXU | S_IWGRP), 0);
+    assert_false(dlp_fs_mkdtemp(&path, &err));
+    TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*");
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(chmod(cache, S_IRWXU), 0);
+    g_free(cache);
+
+    /* success */
+    assert_true(dlp_fs_mkdtemp(&path, &err));
+    assert_null(err);
+    assert_ptr_equal(strstr(path, s->home), path);
+    assert_true(strlen(path) > 6);
+    assert_string_not_equal(path + strlen(path) - 6, "XXXXXX");
+    assert_int_equal(stat(path, &st), 0);
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(st.st_mode & (mode_t)~S_IFMT, S_IRWXU);
+    g_free(path);
+}
+
 static void test_preload_walk_fdopendir(void **state)
 {
     GError *err = NULL;
@@ -476,12 +511,28 @@ static void test_preload_mkdir_owner(void **state)
     }
 }
 
+static void test_preload_mkdtemp(void **state)
+{
+    char *path;
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_int_equal(setenv("DLP_PRELOAD_MKDTEMP_ERRNO", "5", 1), 0);
+        assert_false(dlp_fs_mkdtemp(&path, &err));
+        TEST_ASSERT_ERR(err, 5, "*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_MKDTEMP_ERRNO"), 0);
+    }
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_user_dir),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),
+        cmocka_unit_test(test_mkdtemp),
         cmocka_unit_test(test_walk_symlink),
         cmocka_unit_test(test_walk_cb_failure),
         cmocka_unit_test(test_walk_filelist),
@@ -493,6 +544,7 @@ int main(void)
         cmocka_unit_test(test_preload_rmdir_unlinkat),
         cmocka_unit_test(test_preload_mkdir_stat),
         cmocka_unit_test(test_preload_mkdir_owner),
+        cmocka_unit_test(test_preload_mkdtemp),
     };
 
     return cmocka_run_group_tests(tests, group_setup, group_teardown);
