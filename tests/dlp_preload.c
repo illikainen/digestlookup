@@ -25,6 +25,8 @@ typedef int (*closedir_fn)(DIR *dir);
 typedef uid_t (*getuid_fn)(void);
 typedef uid_t (*getgid_fn)(void);
 typedef char *(*mkdtemp_fn)(char *template);
+typedef int (*mkstemp_fn)(char *template);
+typedef int (*unlink_fn)(const char *path);
 typedef int (*unlinkat_fn)(int fd, const char *path, int flag);
 typedef int (*__fxstat_fn)(int ver, int fd, struct stat *s);
 typedef int (*__fxstatat_fn)(int ver, int fd, const char *path, struct stat *s,
@@ -200,6 +202,42 @@ char *mkdtemp(char *template)
     }
 
     return fn(template);
+}
+
+/* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */
+int mkstemp(char *template)
+{
+    static mkstemp_fn fn;
+    error_t err;
+
+    if (fn == NULL) {
+        fn = (mkstemp_fn)dlp_preload_sym("mkstemp");
+    }
+
+    if (dlp_preload_get_int("mkstemp_errno", &err)) {
+        errno = err;
+        return -1;
+    }
+
+    return fn(template);
+}
+
+/* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */
+int unlink(const char *path)
+{
+    static unlink_fn fn;
+    error_t err;
+
+    if (fn == NULL) {
+        fn = (unlink_fn)dlp_preload_sym("unlink");
+    }
+
+    if (dlp_preload_get_int("unlink_errno", &err)) {
+        errno = err;
+        return -1;
+    }
+
+    return fn(path);
 }
 
 /* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */

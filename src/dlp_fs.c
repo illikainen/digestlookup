@@ -158,6 +158,57 @@ bool dlp_fs_mkdtemp(char **path, GError **error)
 }
 
 /**
+ * Create a per-user temporary file.
+ *
+ * @param fd    File descriptor that must be closed after use.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_mkstemp(int *fd, GError **error)
+{
+    char *cache;
+    char *tmp;
+
+    g_return_val_if_fail(fd != NULL, false);
+    *fd = -1;
+
+    if (!dlp_fs_cache_dir(&cache, error)) {
+        return false;
+    }
+
+    /*
+     * POSIX.1-2017 specifies that mkstemp() should replace six or more X's.
+     * Glibc 2.28 only replaces six X's but other implementations may replace
+     * more.
+     */
+    tmp = g_build_filename(cache, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", NULL);
+    g_free(cache);
+
+    errno = 0;
+    if ((*fd = mkstemp(tmp)) == -1) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", tmp, g_strerror(errno));
+        g_free(tmp);
+        return false;
+    }
+
+    /*
+     * The cache directory is created with S_IRWXU and mkstemp() creates the
+     * file itself with S_IRUSR|S_IWUSR, so this race condition is OK.
+     */
+    errno = 0;
+    if (unlink(tmp) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", tmp, g_strerror(errno));
+        close(*fd); /* return code ignored */
+        *fd = -1;
+        g_free(tmp);
+        return false;
+    }
+
+    g_free(tmp);
+    return true;
+}
+
+/**
  * Retrieve a per-user cache directory.
  *
  * The directory is created if it doesn't exist.
