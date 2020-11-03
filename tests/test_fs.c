@@ -209,6 +209,7 @@ static void test_walk_filelist(void **state)
 static void test_user_dir(void **state)
 {
     size_t i;
+    struct stat st;
     bool (*fn[])(char **path, GError **error) = {
         dlp_fs_cache_dir,
         dlp_fs_config_dir,
@@ -223,6 +224,9 @@ static void test_user_dir(void **state)
         assert_true(fn[i](&path[i], &err));
         assert_null(err);
         assert_ptr_equal(path[i], strstr(path[i], s->home));
+        assert_int_equal(stat(path[i], &st), 0);
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(st.st_mode & (mode_t)~S_IFMT, S_IRWXU);
 
         /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
         assert_int_equal(chmod(path[i], S_IRWXU | S_IWGRP), 0);
@@ -246,12 +250,16 @@ static void test_mkdir(void **state)
 {
     char *p;
     char *sp;
+    struct stat st;
     GError *err = NULL;
 
     (void)state;
 
     assert_true(dlp_fs_cache_dir(&p, NULL));
     assert_true(dlp_fs_mkdir(p, NULL));
+    assert_int_equal(stat(p, &st), 0);
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(st.st_mode & (mode_t)~S_IFMT, S_IRWXU);
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(p, S_IRWXU | S_IWGRP), 0);
