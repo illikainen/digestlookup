@@ -66,7 +66,7 @@ static int group_teardown(void **state)
     struct state *s = *state;
 
     rv = chdir(s->orig_cwd);
-    rv += dlp_fs_rmdir(s->cwd, NULL);
+    rv += dlp_fs_rmdir(s->cwd, NULL) == false;
 
     g_free(s->cwd);
     g_free(s->home);
