@@ -124,13 +124,18 @@ add_flag(DEBUG "-fno-omit-frame-pointer")
 add_flag(DEBUG "-fprofile-instr-generate=instr-%m.profraw")
 add_flag(DEBUG "-fcoverage-mapping")
 
-foreach(sanitizer address cfi integer nullability thread undefined)
-    string(TOUPPER ${sanitizer} sanitizer_env)
-    if(NOT DEFINED ENV{NO_${sanitizer_env}})
-        add_flag(DEBUG "-fsanitize=${sanitizer}")
-        add_flag(DEBUG "-fno-sanitize-recover=${sanitizer}")
-    endif()
-endforeach()
+# FIXME: investigate why ASan with gcc 8.3.0 occasionally enters a seemingly
+# infinite loop where the only output is AddressSanitizer:DEADLYSIGNAL.
+# Does not seem reproducible in gdb.
+if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+    foreach(sanitizer address cfi integer nullability thread undefined)
+        string(TOUPPER ${sanitizer} sanitizer_env)
+        if(NOT DEFINED ENV{NO_${sanitizer_env}})
+            add_flag(DEBUG "-fsanitize=${sanitizer}")
+            add_flag(DEBUG "-fno-sanitize-recover=${sanitizer}")
+        endif()
+    endforeach()
+endif()
 
 #
 # Dependencies.
