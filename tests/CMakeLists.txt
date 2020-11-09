@@ -21,8 +21,9 @@ file(GLOB_RECURSE utils
 # Clang CFI requires LTO.  However, LTO seems incompatible with symbol wrapping
 # in GNU ld [1][2].
 #
-# LD_PRELOAD also seems broken with CFI, but CFI can be disabled for only the
-# preload library.  So, LD_PRELOAD is currently used for mocking.  Meh...
+# LD_PRELOAD also seems broken with CFI, but CFI (and other sanitizers) can be
+# disabled for only the preload library.  So, LD_PRELOAD is currently used for
+# mocking.  Meh...
 #
 # See:
 # [1] https://bugzilla.redhat.com/show_bug.cgi?id=1693831
@@ -33,8 +34,11 @@ add_library(${PROJECT_NAME}_preload SHARED dlp_preload.c)
 target_compile_definitions(${PROJECT_NAME}_preload
     PRIVATE -D_GNU_SOURCE)
 target_compile_options(${PROJECT_NAME}_preload
-    PRIVATE -fno-sanitize=cfi
     PRIVATE -fvisibility=default)
+if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+    target_compile_options(${PROJECT_NAME}_preload
+        PRIVATE -fno-sanitize=address -fno-sanitize=cfi -fno-sanitize=undefined)
+endif()
 target_link_options(${PROJECT_NAME}_preload
     PRIVATE -Wl,-z,undefs)
 
