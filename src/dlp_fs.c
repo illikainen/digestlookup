@@ -153,6 +153,28 @@ bool dlp_fs_close(int *fd, GError **error)
 }
 
 /**
+ * Move the position of a file descriptor.
+ *
+ * @param fd     File descriptor to reposition.
+ * @param offset New position relative to whence.
+ * @param whence Base for offset.
+ * @param error  Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_seek(int fd, off_t offset, int whence, GError **error)
+{
+    g_return_val_if_fail(fd >= 0, false);
+
+    errno = 0;
+    if (lseek(fd, offset, whence) == -1) {
+        g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Recursively create a directory if it doesn't exist.
  *
  * @param path  Directory to create.
