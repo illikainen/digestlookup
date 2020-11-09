@@ -296,6 +296,116 @@ static void test_check_stat(void **state)
     assert_int_equal(close(fd), 0);
 }
 
+static void test_openat(void **state)
+{
+    int fd;
+    int fdflags;
+    int tmp;
+    GError *err = NULL;
+    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
+    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
+
+    (void)state;
+
+    assert_true(dlp_fs_openat(AT_FDCWD, "openat", flags, mode, &fd, &err));
+    assert_null(err);
+
+    /*
+     * Check mode.
+     */
+    assert_int_not_equal((fdflags = fcntl(fd, F_GETFD)), -1);
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_not_equal(fdflags & FD_CLOEXEC, 0);
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fdflags & O_NONBLOCK, 0);
+
+    /*
+     * Open failure.
+     */
+    assert_int_equal(fchmod(fd, 0), 0);
+    assert_false(dlp_fs_openat(AT_FDCWD, "openat", flags, mode, &tmp, &err));
+    assert_non_null(err);
+    g_clear_error(&err);
+    assert_int_equal(fchmod(fd, mode), 0);
+
+    /*
+     * Bad permissions.
+     */
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fchmod(fd, mode | S_IWGRP), 0);
+    assert_false(dlp_fs_openat(AT_FDCWD, "openat", flags, mode, &tmp, &err));
+    assert_non_null(err);
+    g_clear_error(&err);
+    assert_int_equal(fchmod(fd, mode), 0);
+}
+
+static void test_open(void **state)
+{
+    int fd;
+    int fdflags;
+    int tmp;
+    GError *err = NULL;
+    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
+    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
+
+    (void)state;
+
+    assert_true(dlp_fs_open("open", flags, mode, &fd, &err));
+    assert_null(err);
+
+    /*
+     * Check mode.
+     */
+    assert_int_not_equal((fdflags = fcntl(fd, F_GETFD)), -1);
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_not_equal(fdflags & FD_CLOEXEC, 0);
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fdflags & O_NONBLOCK, 0);
+
+    /*
+     * Open failure.
+     */
+    assert_int_equal(fchmod(fd, 0), 0);
+    assert_false(dlp_fs_open("open", flags, mode, &tmp, &err));
+    assert_non_null(err);
+    g_clear_error(&err);
+    assert_int_equal(fchmod(fd, mode), 0);
+
+    /*
+     * Bad permissions.
+     */
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fchmod(fd, mode | S_IWGRP), 0);
+    assert_false(dlp_fs_open("open", flags, mode, &tmp, &err));
+    assert_non_null(err);
+    g_clear_error(&err);
+    assert_int_equal(fchmod(fd, mode), 0);
+}
+
+static void test_close(void **state)
+{
+    int fd;
+    GError *err = NULL;
+    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
+    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
+
+    (void)state;
+
+    assert_true(dlp_fs_close(NULL, NULL));
+    assert_true(dlp_fs_close(NULL, &err));
+    assert_null(err);
+
+    assert_true(dlp_fs_open("close", flags, mode, &fd, &err));
+
+    assert_true(dlp_fs_close(&fd, &err));
+    assert_int_equal(fd, -1);
+    assert_null(err);
+
+    assert_true(dlp_fs_close(&fd, &err));
+    assert_int_equal(fd, -1);
+    assert_null(err);
+}
+
 static void test_mkdir(void **state)
 {
     char *p;
@@ -636,11 +746,52 @@ static void test_preload_mkstemp(void **state)
     }
 }
 
+static void test_preload_openat(void **state)
+{
+    int fd;
+    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
+    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_int_equal(setenv("DLP_PRELOAD_FSTAT_RV", "-1", 1), 0);
+        assert_false(dlp_fs_openat(AT_FDCWD, "open", flags, mode, &fd, &err));
+        assert_non_null(err);
+        g_clear_error(&err);
+        assert_int_equal(unsetenv("DLP_PRELOAD_FSTAT_RV"), 0);
+    }
+}
+
+static void test_preload_close(void **state)
+{
+    int fd;
+    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
+    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
+    GError *err = NULL;
+
+    (void)state;
+
+    if (getenv("LD_PRELOAD") != NULL) {
+        assert_true(dlp_fs_openat(AT_FDCWD, "close", flags, mode, &fd, &err));
+
+        assert_int_equal(setenv("DLP_PRELOAD_CLOSE_ERRNO", "123", 1), 0);
+        assert_false(dlp_fs_close(&fd, &err));
+        assert_int_equal(fd, -1);
+        TEST_ASSERT_ERR(err, 123, "*");
+        assert_int_equal(unsetenv("DLP_PRELOAD_CLOSE_ERRNO"), 0);
+    }
+}
+
 int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_user_dir),
         cmocka_unit_test(test_check_stat),
+        cmocka_unit_test(test_openat),
+        cmocka_unit_test(test_open),
+        cmocka_unit_test(test_close),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),
         cmocka_unit_test(test_mkdtemp),
@@ -658,6 +809,8 @@ int main(void)
         cmocka_unit_test(test_preload_mkdir_owner),
         cmocka_unit_test(test_preload_mkdtemp),
         cmocka_unit_test(test_preload_mkstemp),
+        cmocka_unit_test(test_preload_openat),
+        cmocka_unit_test(test_preload_close),
     };
 
     return cmocka_run_group_tests(tests, group_setup, group_teardown);

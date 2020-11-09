@@ -26,6 +26,7 @@ typedef uid_t (*getuid_fn)(void);
 typedef uid_t (*getgid_fn)(void);
 typedef char *(*mkdtemp_fn)(char *template);
 typedef int (*mkstemp_fn)(char *template);
+typedef int (*close_fn)(int fd);
 typedef int (*unlink_fn)(const char *path);
 typedef int (*unlinkat_fn)(int fd, const char *path, int flag);
 typedef int (*__fxstat_fn)(int ver, int fd, struct stat *s);
@@ -220,6 +221,24 @@ int mkstemp(char *template)
     }
 
     return fn(template);
+}
+
+/* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */
+int close(int fd)
+{
+    static close_fn fn;
+    error_t err;
+
+    if (fn == NULL) {
+        fn = (close_fn)dlp_preload_sym("close");
+    }
+
+    if (dlp_preload_get_int("close_errno", &err)) {
+        errno = err;
+        return -1;
+    }
+
+    return fn(fd);
 }
 
 /* NOLINTNEXTLINE(readability-inconsistent-declaration-parameter-name) */

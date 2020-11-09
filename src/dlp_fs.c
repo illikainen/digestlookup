@@ -44,8 +44,7 @@ bool dlp_fs_walk(const char *path, dlp_fs_walk_cb cb, void *data,
 
     errno = 0;
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-    if ((fd = open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)) == -1) {
-        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+    if (!dlp_fs_open(path, O_RDONLY | O_NOFOLLOW, 0, &fd, error)) {
         return false;
     }
 
@@ -62,6 +61,95 @@ bool dlp_fs_walk(const char *path, dlp_fs_walk_cb cb, void *data,
     g_mutex_unlock(&lock);
 
     return rv;
+}
+
+/**
+ * Open a file.
+ *
+ * @param dfd   Directory to use for relative paths.
+ * @param path  Path to open.
+ * @param flags Flags to open the file with.
+ * @param mode  Mode for newly created files.
+ * @param fd    Output pointer for the file descriptor.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_openat(int dfd, const char *path, int flags, mode_t mode, int *fd,
+                   GError **error)
+{
+    struct stat s;
+
+    g_return_val_if_fail(path != NULL && fd != NULL, false);
+
+    errno = 0;
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    if ((*fd = openat(dfd, path, flags | O_CLOEXEC, mode)) == -1) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        return false;
+    }
+
+    errno = 0;
+    if (fstat(*fd, &s) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        dlp_fs_close(fd, NULL); /* return code ignored */
+        return false;
+    }
+
+    if (!dlp_fs_check_stat(&s, error)) {
+        dlp_fs_close(fd, NULL); /* return code ignored */
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Open a file.
+ *
+ * @param path  Path to open.
+ * @param flags Flags to open the file with.
+ * @param mode  Mode for newly created files.
+ * @param fd    Output pointer for the file descriptor.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_open(const char *path, int flags, mode_t mode, int *fd,
+                 GError **error)
+{
+    return dlp_fs_openat(AT_FDCWD, path, flags, mode, fd, error);
+}
+
+/**
+ * Close a file descriptor.
+ *
+ * It's a noop if the file descriptor pointer is NULL or if it points to a
+ * value below 0.  The pointed to descriptor is set to -1 on both success and
+ * failure if the pointer is non-NULL.
+ *
+ * The Linux man-pages project state that it's unwise to retry close() on
+ * failure because the file descriptor may have been released before the
+ * failure happened and potentially reused by another thread.
+ *
+ * See:
+ * - https://manpages.debian.org/buster/manpages-dev/close.2.en.html
+ *
+ * @param fd    Pointer to a file descriptor to close.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_close(int *fd, GError **error)
+{
+    if (fd != NULL) {
+        errno = 0;
+        if (*fd >= 0 && close(*fd) != 0) {
+            g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+            *fd = -1;
+            return false;
+        }
+        *fd = -1;
+    }
+
+    return true;
 }
 
 /**
@@ -339,10 +427,8 @@ static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
         if (S_ISDIR(s.st_mode)) {
             errno = 0;
             /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-            cfd = openat(fd, de->d_name, O_RDONLY | O_CLOEXEC | O_NOFOLLOW);
-            if (cfd == -1) {
-                g_set_error(error, DLP_ERROR, errno, "%s: %s", walkpath,
-                            g_strerror(errno));
+            if (!dlp_fs_openat(fd, de->d_name, O_RDONLY | O_NOFOLLOW, 0, &cfd,
+                               error)) {
                 g_free(walkpath);
                 closedir(dir); /* return code ignored */
                 return false;
