@@ -232,18 +232,68 @@ static void test_user_dir(void **state)
         assert_int_equal(chmod(path[i], S_IRWXU | S_IWGRP), 0);
         assert_false(fn[i](&p, &err));
         assert_null(p);
-        TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+        TEST_ASSERT_ERR(err, EBADFD, "*");
 
         /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
         assert_int_equal(chmod(path[i], S_IRWXU | S_IWOTH), 0);
         assert_false(fn[i](&p, &err));
         assert_null(p);
-        TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+        TEST_ASSERT_ERR(err, EBADFD, "*");
 
         /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
         assert_int_equal(chmod(path[i], S_IRWXU), 0);
         g_free(path[i]);
     }
+}
+
+static void test_check_stat(void **state)
+{
+    int fd;
+    struct stat s;
+    GError *err = NULL;
+
+    (void)state;
+
+    assert_false(dlp_fs_check_stat(NULL, NULL));
+    assert_false(dlp_fs_check_stat(NULL, &err));
+    assert_null(err);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    fd = open("check-stat", O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, S_IWUSR);
+    assert_int_not_equal(fd, -1);
+
+    assert_int_equal(fstat(fd, &s), 0);
+    assert_true(dlp_fs_check_stat(&s, &err));
+    assert_null(err);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fchmod(fd, S_IWUSR | S_IWGRP), 0);
+    assert_int_equal(fstat(fd, &s), 0);
+    assert_false(dlp_fs_check_stat(&s, &err));
+    TEST_ASSERT_ERR(err, EBADFD, "*");
+    g_clear_error(&err);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fchmod(fd, S_IWUSR | S_IWOTH), 0);
+    assert_int_equal(fstat(fd, &s), 0);
+    assert_false(dlp_fs_check_stat(&s, &err));
+    TEST_ASSERT_ERR(err, EBADFD, "*");
+    g_clear_error(&err);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fchmod(fd, S_IWUSR | S_IWGRP | S_IWOTH), 0);
+    assert_int_equal(fstat(fd, &s), 0);
+    assert_false(dlp_fs_check_stat(&s, &err));
+    TEST_ASSERT_ERR(err, EBADFD, "*");
+    g_clear_error(&err);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    assert_int_equal(fchmod(fd, S_IWUSR), 0);
+    assert_int_equal(fstat(fd, &s), 0);
+    assert_true(dlp_fs_check_stat(&s, &err));
+    assert_null(err);
+
+    assert_int_equal(close(fd), 0);
 }
 
 static void test_mkdir(void **state)
@@ -264,17 +314,17 @@ static void test_mkdir(void **state)
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(p, S_IRWXU | S_IWGRP), 0);
     assert_false(dlp_fs_mkdir(p, &err));
-    TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+    TEST_ASSERT_ERR(err, EBADFD, "*");
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(p, S_IRWXU | S_IWOTH), 0);
     assert_false(dlp_fs_mkdir(p, &err));
-    TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+    TEST_ASSERT_ERR(err, EBADFD, "*");
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(p, S_IRWXU | S_IWGRP | S_IWOTH), 0);
     assert_false(dlp_fs_mkdir(p, &err));
-    TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+    TEST_ASSERT_ERR(err, EBADFD, "*");
 
     assert_int_equal(chmod(p, 0), 0);
     sp = g_build_filename(p, "subpath", NULL);
@@ -363,7 +413,7 @@ static void test_mkdtemp(void **state)
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(cache, S_IRWXU | S_IWGRP), 0);
     assert_false(dlp_fs_mkdtemp(&path, &err));
-    TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*");
+    TEST_ASSERT_ERR(err, EBADFD, "*");
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(cache, S_IRWXU), 0);
     g_free(cache);
@@ -397,7 +447,7 @@ static void test_mkstemp(void **state)
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(cache, S_IRWXU | S_IWGRP), 0);
     assert_false(dlp_fs_mkstemp(&fd, &err));
-    TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*");
+    TEST_ASSERT_ERR(err, EBADFD, "*");
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(cache, S_IRWXU), 0);
     g_free(cache);
@@ -537,12 +587,12 @@ static void test_preload_mkdir_owner(void **state)
     if (getenv("LD_PRELOAD") != NULL) {
         assert_int_equal(setenv("DLP_PRELOAD_GETUID_RV", "12345", 1), 0);
         assert_false(dlp_fs_mkdir("getuid", &err));
-        TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+        TEST_ASSERT_ERR(err, EBADFD, "*");
         assert_int_equal(unsetenv("DLP_PRELOAD_GETUID_RV"), 0);
 
         assert_int_equal(setenv("DLP_PRELOAD_GETGID_RV", "12345", 1), 0);
         assert_false(dlp_fs_mkdir("getgid", &err));
-        TEST_ASSERT_ERR(err, DLP_FS_ERROR_FAILED, "*permission*");
+        TEST_ASSERT_ERR(err, EBADFD, "*");
         assert_int_equal(unsetenv("DLP_PRELOAD_GETGID_RV"), 0);
     }
 }
@@ -590,6 +640,7 @@ int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_user_dir),
+        cmocka_unit_test(test_check_stat),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),
         cmocka_unit_test(test_mkdtemp),

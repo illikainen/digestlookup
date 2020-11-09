@@ -90,12 +90,7 @@ bool dlp_fs_mkdir(const char *path, GError **error)
         return false;
     }
 
-    if ((s.st_uid != getuid() && s.st_uid != 0) ||
-        (s.st_gid != getgid() && s.st_gid != 0) ||
-        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-        (s.st_mode & S_IWGRP || s.st_mode & S_IWOTH)) {
-        g_set_error(error, DLP_ERROR, DLP_FS_ERROR_FAILED, "%s: %s", path,
-                    _("invalid permission"));
+    if (!dlp_fs_check_stat(&s, error)) {
         return false;
     }
 
@@ -205,6 +200,28 @@ bool dlp_fs_mkstemp(int *fd, GError **error)
     }
 
     g_free(tmp);
+    return true;
+}
+
+/**
+ * Check that a stat structure looks reasonable.
+ *
+ * @param s     Structure to check.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_check_stat(const struct stat *s, GError **error)
+{
+    g_return_val_if_fail(s != NULL, false);
+
+    if ((s->st_uid != getuid() && s->st_uid != 0) ||
+        (s->st_gid != getgid() && s->st_gid != 0) ||
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        s->st_mode & (S_IWGRP | S_IWOTH)) {
+        g_set_error(error, DLP_ERROR, EBADFD, "%s", g_strerror(EBADFD));
+        return false;
+    }
+
     return true;
 }
 
