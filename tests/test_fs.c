@@ -254,10 +254,6 @@ static void test_check_stat(void **state)
 
     (void)state;
 
-    assert_false(dlp_fs_check_stat(NULL, NULL));
-    assert_false(dlp_fs_check_stat(NULL, &err));
-    assert_null(err);
-
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     fd = open("check-stat", O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, S_IWUSR);
     assert_int_not_equal(fd, -1);
@@ -579,10 +575,6 @@ static void test_mkdtemp(void **state)
     GError *err = NULL;
     struct state *s = *state;
 
-    /* param failure */
-    assert_false(dlp_fs_mkdtemp(NULL, NULL));
-    assert_false(dlp_fs_mkdtemp(NULL, &err));
-
     /* permission failure */
     assert_true(dlp_fs_cache_dir(&cache, NULL));
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
@@ -612,10 +604,6 @@ static void test_mkstemp(void **state)
     GError *err = NULL;
 
     (void)state;
-
-    /* param failure */
-    assert_false(dlp_fs_mkstemp(NULL, NULL));
-    assert_false(dlp_fs_mkstemp(NULL, &err));
 
     /* permission failure */
     assert_true(dlp_fs_cache_dir(&cache, NULL));
