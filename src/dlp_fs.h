@@ -29,6 +29,7 @@ bool dlp_fs_open(const char *path, int flags, mode_t mode, int *fd,
                  GError **error);
 bool dlp_fs_close(int *fd, GError **error);
 bool dlp_fs_seek(int fd, off_t offset, int whence, GError **error);
+bool dlp_fs_truncate(int fd, off_t len, GError **error);
 bool dlp_fs_mkdir(const char *path, GError **error);
 bool dlp_fs_rmdir(const char *path, GError **error);
 bool dlp_fs_mkdtemp(char **path, GError **error);

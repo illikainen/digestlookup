@@ -175,6 +175,27 @@ bool dlp_fs_seek(int fd, off_t offset, int whence, GError **error)
 }
 
 /**
+ * Truncate a file descriptor.
+ *
+ * @param fd    File descriptor to truncate.
+ * @param len   New length of the file.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_truncate(int fd, off_t len, GError **error)
+{
+    g_return_val_if_fail(fd >= 0, false);
+
+    errno = 0;
+    if (ftruncate(fd, len) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Recursively create a directory if it doesn't exist.
  *
  * @param path  Directory to create.

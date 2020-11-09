@@ -446,6 +446,31 @@ static void test_seek(void **state)
     assert_true(dlp_fs_close(&fd, NULL));
 }
 
+static void test_truncate(void **state)
+{
+    int fd;
+    GError *err = NULL;
+    char buf[MIN(MIN(SSIZE_MAX, G_MAXSSIZE), 4096)];
+    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
+    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
+
+    (void)state;
+
+    assert_true(dlp_fs_open("seek", flags, mode, &fd, &err));
+
+    assert_int_equal(write(fd, "foobar", 6), 6);
+    assert_true(dlp_fs_truncate(fd, 3, &err));
+    assert_null(err);
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, &err));
+    assert_int_equal(read(fd, buf, sizeof(buf)), 3);
+    assert_int_equal(strncmp(buf, "foo", 3), 0);
+
+    assert_false(dlp_fs_truncate(fd, -1, &err));
+    TEST_ASSERT_ERR(err, EINVAL, "*");
+
+    assert_true(dlp_fs_close(&fd, NULL));
+}
+
 static void test_mkdir(void **state)
 {
     char *p;
@@ -833,6 +858,7 @@ int main(void)
         cmocka_unit_test(test_open),
         cmocka_unit_test(test_close),
         cmocka_unit_test(test_seek),
+        cmocka_unit_test(test_truncate),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),
         cmocka_unit_test(test_mkdtemp),
