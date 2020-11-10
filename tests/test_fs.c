@@ -12,6 +12,7 @@
 
 #include "dlp_error.h"
 #include "dlp_fs.h"
+#include "dlp_mem.h"
 #include "test.h"
 
 enum test_fs_error {
@@ -33,26 +34,26 @@ static int group_setup(void **state)
 {
     struct state *s;
 
-    s = g_malloc0(sizeof(*s));
+    s = dlp_mem_alloc(sizeof(*s));
 
     if (!test_setup_home(&s->home)) {
-        g_free(s);
+        dlp_mem_free(&s);
         return -1;
     }
 
     if (getcwd(s->orig_cwd, sizeof(s->orig_cwd)) == NULL) {
-        g_free(s);
+        dlp_mem_free(&s);
         return -1;
     }
 
     if ((s->cwd = g_strdup(g_getenv("DLP_TEST_HOME"))) == NULL) {
-        g_free(s);
+        dlp_mem_free(&s);
         return -1;
     }
 
     if (chdir(s->cwd) != 0) {
-        g_free(s->cwd);
-        g_free(s);
+        dlp_mem_free(&s->cwd);
+        dlp_mem_free(&s);
         return -1;
     }
 
@@ -68,9 +69,9 @@ static int group_teardown(void **state)
     rv = chdir(s->orig_cwd);
     rv += dlp_fs_rmdir(s->cwd, NULL) == false;
 
-    g_free(s->cwd);
-    g_free(s->home);
-    g_free(s);
+    dlp_mem_free(&s->cwd);
+    dlp_mem_free(&s->home);
+    dlp_mem_free(&s);
 
     return rv != 0;
 }
@@ -242,7 +243,7 @@ static void test_user_dir(void **state)
 
         /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
         assert_int_equal(chmod(path[i], S_IRWXU), 0);
-        g_free(path[i]);
+        dlp_mem_free(&path[i]);
     }
 }
 
@@ -505,8 +506,8 @@ static void test_mkdir(void **state)
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(p, S_IRWXU), 0);
 
-    g_free(p);
-    g_free(sp);
+    dlp_mem_free(&p);
+    dlp_mem_free(&sp);
 }
 
 /*
@@ -583,7 +584,7 @@ static void test_mkdtemp(void **state)
     TEST_ASSERT_ERR(err, EBADFD, "*");
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(cache, S_IRWXU), 0);
-    g_free(cache);
+    dlp_mem_free(&cache);
 
     /* success */
     assert_true(dlp_fs_mkdtemp(&path, &err));
@@ -594,7 +595,7 @@ static void test_mkdtemp(void **state)
     assert_int_equal(stat(path, &st), 0);
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(st.st_mode & (mode_t)~S_IFMT, S_IRWXU);
-    g_free(path);
+    dlp_mem_free(&path);
 }
 
 static void test_mkstemp(void **state)
@@ -613,7 +614,7 @@ static void test_mkstemp(void **state)
     TEST_ASSERT_ERR(err, EBADFD, "*");
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(cache, S_IRWXU), 0);
-    g_free(cache);
+    dlp_mem_free(&cache);
 
     /* success */
     assert_true(dlp_fs_mkstemp(&fd, &err));

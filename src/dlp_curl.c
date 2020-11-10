@@ -16,6 +16,7 @@
 
 #include "config.h"
 #include "dlp_error.h"
+#include "dlp_mem.h"
 #include "dlp_overflow.h"
 
 #ifdef HAVE_OPENSSL
@@ -99,7 +100,7 @@ bool dlp_curl_init(CURL **easy, GError **error)
         return false;
     }
 
-    priv = g_malloc0(sizeof(*priv));
+    priv = dlp_mem_alloc(sizeof(*priv));
 
     if (!dlp_curl_set(e, CURLOPT_NOSIGNAL, 1L) ||
         !dlp_curl_set(e, CURLOPT_FOLLOWLOCATION, 0L) ||
@@ -121,7 +122,7 @@ bool dlp_curl_init(CURL **easy, GError **error)
         !dlp_curl_set(e, CURLOPT_PRIVATE, priv) ||
         !dlp_curl_set(e, CURLOPT_ERRORBUFFER, priv->errbuf) ||
         !dlp_curl_set(e, CURLOPT_WRITEFUNCTION, dlp_curl_write_fd)) {
-        g_free(priv);
+        dlp_mem_free(&priv);
         curl_easy_cleanup(e);
         g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
                     _("invalid option"));
@@ -150,7 +151,7 @@ bool dlp_curl_free(CURL *easy)
     }
 
     curl_easy_cleanup(easy);
-    g_free(priv);
+    dlp_mem_free(&priv);
     return true;
 }
 

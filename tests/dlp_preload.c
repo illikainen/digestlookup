@@ -18,6 +18,7 @@
 #include <glib.h>
 
 #include "dlp.h"
+#include "dlp_mem.h"
 #include "dlp_overflow.h"
 
 typedef DIR *(*fdopendir_fn)(int fd);
@@ -60,7 +61,7 @@ DLP_NODISCARD static bool dlp_preload_get_env(const char *name, char **value)
     env = g_string_free(str, false);
 
     *value = g_strdup(getenv(env));
-    g_free(env);
+    dlp_mem_free(&env);
     return *value != NULL;
 }
 
@@ -77,10 +78,10 @@ DLP_NODISCARD static bool dlp_preload_get_ll(const char *name, long long *value)
         if ((errno == 0 || (ll != 0 && ll != LONG_MIN && ll != LONG_MAX)) &&
             end != str && end != NULL && *end == '\0') {
             *value = ll;
-            g_free(str);
+            dlp_mem_free(&str);
             return true;
         }
-        g_free(str);
+        dlp_mem_free(&str);
     }
     return false;
 }

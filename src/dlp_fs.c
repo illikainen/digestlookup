@@ -15,6 +15,7 @@
 
 #include "config.h"
 #include "dlp_error.h"
+#include "dlp_mem.h"
 
 static bool dlp_fs_user_dir(const char *base, char **path,
                             GError **error) DLP_NODISCARD;
@@ -267,7 +268,7 @@ bool dlp_fs_mkdtemp(char **path, GError **error)
      * more.
      */
     tmp = g_build_filename(cache, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", NULL);
-    g_free(cache);
+    dlp_mem_free(&cache);
 
     errno = 0;
     if ((*path = mkdtemp(tmp)) == NULL || *path != tmp) {
@@ -310,7 +311,7 @@ bool dlp_fs_mkstemp(int *fd, GError **error)
      * more.
      */
     tmp = g_build_filename(cache, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", NULL);
-    g_free(cache);
+    dlp_mem_free(&cache);
 
     errno = 0;
     if ((*fd = mkstemp(tmp)) == -1) {
@@ -416,8 +417,7 @@ static bool dlp_fs_user_dir(const char *base, char **path, GError **error)
 
     *path = g_build_filename(base, PROJECT_NAME, NULL);
     if (!dlp_fs_mkdir(*path, error)) {
-        g_free(*path);
-        *path = NULL;
+        dlp_mem_free(path);
         return false;
     }
 
@@ -463,7 +463,7 @@ static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
         if (fstatat(fd, de->d_name, &s, AT_SYMLINK_NOFOLLOW) != 0) {
             g_set_error(error, DLP_ERROR, errno, "%s: %s", walkpath,
                         g_strerror(errno));
-            g_free(walkpath);
+            dlp_mem_free(&walkpath);
             closedir(dir); /* return code ignored */
             return false;
         }
@@ -474,25 +474,25 @@ static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
             /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
             if (!dlp_fs_openat(fd, de->d_name, O_RDONLY | O_NOFOLLOW, 0, &cfd,
                                error)) {
-                g_free(walkpath);
+                dlp_mem_free(&walkpath);
                 closedir(dir); /* return code ignored */
                 return false;
             }
 
             if (!dlp_fs_walk_do(cfd, walkpath, cb, data, error)) {
-                g_free(walkpath);
+                dlp_mem_free(&walkpath);
                 closedir(dir); /* return code ignored */
                 return false;
             }
         }
 
         if (!cb(fd, de->d_name, walkpath, &s, data, error)) {
-            g_free(walkpath);
+            dlp_mem_free(&walkpath);
             closedir(dir); /* return code ignored */
             return false;
         }
 
-        g_free(walkpath);
+        dlp_mem_free(&walkpath);
     }
 
     if (errno != 0) {

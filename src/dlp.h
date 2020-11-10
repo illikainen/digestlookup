@@ -8,8 +8,10 @@
 #define DLP_H
 
 #if defined(__clang__) || defined(__GNUC__)
+#    define DLP_ALLOC_SIZE(n) __attribute__((alloc_size(n)))
 #    define DLP_NODISCARD __attribute__((warn_unused_result))
 #else
+#    define DLP_ALLOC_SIZE(n)
 #    define DLP_NODISCARD
 #endif
 

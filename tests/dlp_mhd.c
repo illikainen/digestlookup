@@ -15,6 +15,7 @@
 #include <microhttpd.h>
 
 #include "dlp_error.h"
+#include "dlp_mem.h"
 
 struct dlp_mhd {
     struct MHD_Daemon *daemon;
@@ -58,7 +59,7 @@ static int dlp_mhd_request_cb(void *cls, struct MHD_Connection *con,
 bool dlp_mhd_init(struct dlp_mhd **mhd)
 {
     if (mhd != NULL) {
-        *mhd = g_malloc0(sizeof(**mhd));
+        *mhd = dlp_mem_alloc(sizeof(**mhd));
         g_rw_lock_init(&(*mhd)->sessions_lock);
         return true;
     }
@@ -74,9 +75,9 @@ bool dlp_mhd_free(struct dlp_mhd *mhd)
         g_rw_lock_writer_unlock(&mhd->sessions_lock);
 
         g_rw_lock_clear(&mhd->sessions_lock);
-        g_free(mhd->key);
-        g_free(mhd->cert);
-        g_free(mhd);
+        dlp_mem_free(&mhd->key);
+        dlp_mem_free(&mhd->cert);
+        dlp_mem_free(&mhd);
 
         return true;
     }
@@ -148,7 +149,7 @@ bool dlp_mhd_session_add(struct dlp_mhd *mhd, const char *method,
                          path != NULL && user_agent != NULL && content != NULL,
                          false);
 
-    s = g_malloc0(sizeof(*s));
+    s = dlp_mem_alloc(sizeof(*s));
     s->req.method = g_strdup(method);
     s->req.version = g_strdup(version);
     s->req.path = g_strdup(path);
@@ -203,19 +204,19 @@ static void dlp_mhd_session_free(gpointer data)
     struct dlp_mhd_session *s = data;
 
     if (s) {
-        g_free(s->req.method);
-        g_free(s->req.path);
-        g_free(s->req.version);
-        g_free(s->req.user_agent);
+        dlp_mem_free(&s->req.method);
+        dlp_mem_free(&s->req.path);
+        dlp_mem_free(&s->req.version);
+        dlp_mem_free(&s->req.user_agent);
 
-        g_free(s->res.content);
-        g_free(s->res.lmtime);
+        dlp_mem_free(&s->res.content);
+        dlp_mem_free(&s->res.lmtime);
 
         if (s->mhd_res) {
             MHD_destroy_response(s->mhd_res);
         }
 
-        g_free(s);
+        dlp_mem_free(&s);
     }
 }
 
@@ -251,10 +252,9 @@ static bool dlp_mhd_lmtime(time_t time, char **str, GError **error)
         return false;
     }
 
-    *str = g_malloc0(len);
+    *str = dlp_mem_alloc(len);
     if (strftime(*str, len, "%a, %d %b %Y %H:%M:%S GMT", &tm) != len - 1) {
-        free(*str);
-        *str = NULL;
+        dlp_mem_free(str);
         g_set_error(error, DLP_ERROR, DLP_MHD_ERROR_FAILED, "strftime");
         /* fall through */
     }
@@ -272,8 +272,7 @@ static bool dlp_mhd_lmtime(time_t time, char **str, GError **error)
      */
     errno = 0;
     if (uselocale(loc) == 0) {
-        free(*str); /* ISO/IEC 9899:201x 7.22.3.3 */
-        *str = NULL;
+        dlp_mem_free(str);
         g_set_error(error, DLP_ERROR, DLP_MHD_ERROR_FAILED, "%s",
                     dlp_error_str("uselocale"));
         return false;

@@ -7,6 +7,7 @@
 #include <microhttpd.h>
 
 #include "dlp_curl.h"
+#include "dlp_mem.h"
 #include "dlp_mhd.h"
 #include "test.h"
 
@@ -29,7 +30,7 @@ static int group_setup(void **state)
 {
     struct state *s;
 
-    s = g_malloc(sizeof(*s));
+    s = dlp_mem_alloc(sizeof(*s));
     *state = s;
 
     s->host = "127.0.0.1";
@@ -50,9 +51,9 @@ static int group_teardown(void **state)
     struct state *s = *state;
     struct dlp_mhd *mhd = s->mhd;
 
-    g_free(s->key);
-    g_free(s->cert);
-    g_free(s);
+    dlp_mem_free(&s->key);
+    dlp_mem_free(&s->cert);
+    dlp_mem_free(&s);
 
     DLP_DISCARD(dlp_mhd_stop(mhd));
     if (!dlp_mhd_free(mhd)) {
@@ -92,7 +93,7 @@ static int teardown(void **state)
             if (remove(s->tmp[i].name) != 0) {
                 rv += 1;
             }
-            g_free(s->tmp[i].name);
+            dlp_mem_free(&s->tmp[i].name);
         }
     }
 
@@ -126,7 +127,7 @@ static void test_success(void **state)
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
     assert_true(dlp_curl_free(curl[0]));
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_bad_ca(void **state)
@@ -150,7 +151,7 @@ static void test_bad_ca(void **state)
     TEST_ASSERT_ERR(err, CURLE_PEER_FAILED_VERIFICATION, "*self signed*");
     assert_true(dlp_curl_free(curl[0]));
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_bad_fqdn(void **state)
@@ -175,7 +176,7 @@ static void test_bad_fqdn(void **state)
     TEST_ASSERT_ERR(err, CURLE_PEER_FAILED_VERIFICATION, "*subject name*");
     assert_true(dlp_curl_free(curl[0]));
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_bad_pin(void **state)
@@ -202,7 +203,7 @@ static void test_bad_pin(void **state)
     TEST_ASSERT_ERR(err, CURLE_SSL_PINNEDPUBKEYNOTMATCH, "*pinned*");
     assert_true(dlp_curl_free(curl[0]));
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_301(void **state)
@@ -228,7 +229,7 @@ static void test_301(void **state)
     TEST_ASSERT_ERR(err, CURLE_HTTP_RETURNED_ERROR, "*invalid status*");
     assert_true(dlp_curl_free(curl[0]));
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_404(void **state)
@@ -253,7 +254,7 @@ static void test_404(void **state)
     TEST_ASSERT_ERR(err, CURLE_HTTP_RETURNED_ERROR, "*Not Found*");
     assert_true(dlp_curl_free(curl[0]));
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_get_mtime(void **state)
@@ -283,7 +284,7 @@ static void test_get_mtime(void **state)
     assert_true(dlp_curl_free(curl[0]));
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_head_mtime(void **state)
@@ -314,7 +315,7 @@ static void test_head_mtime(void **state)
     assert_true(dlp_curl_free(curl[0]));
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "");
 
-    g_free(url);
+    dlp_mem_free(&url);
 }
 
 static void test_multi_success(void **state)
@@ -340,10 +341,10 @@ static void test_multi_success(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_true(dlp_curl_perform(curl, &err));
@@ -381,10 +382,10 @@ static void test_multi_bad_ca(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_false(dlp_curl_perform(curl, &err));
@@ -421,10 +422,10 @@ static void test_multi_bad_fqdn(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_false(dlp_curl_perform(curl, &err));
@@ -462,10 +463,10 @@ static void test_multi_bad_pin(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_false(dlp_curl_perform(curl, &err));
@@ -503,10 +504,10 @@ static void test_multi_301(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_false(dlp_curl_perform(curl, &err));
@@ -544,10 +545,10 @@ static void test_multi_404(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_false(dlp_curl_perform(curl, &err));
@@ -581,10 +582,10 @@ static void test_multi_reuse(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_true(dlp_curl_perform(curl, &err));
@@ -612,10 +613,10 @@ static void test_multi_reuse(void **state)
         assert_true(dlp_curl_set(curl[i], CURLOPT_USERAGENT, agent));
         assert_true(dlp_curl_set(curl[i], CURLOPT_WRITEDATA, &s->tmp[i].fd));
 
-        g_free(path);
-        g_free(url);
-        g_free(agent);
-        g_free(content);
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
     }
 
     assert_true(dlp_curl_perform(curl, &err));
@@ -640,7 +641,7 @@ static void test_write_fd(void **state)
     assert_int_equal(dlp_curl_write_fd(buf, 1, 0, &s->tmp[0].fd), 0);
     assert_int_equal(dlp_curl_write_fd(buf, RSIZE_MAX, 2, &s->tmp[0].fd), 0);
     assert_int_equal(dlp_curl_write_fd(buf, 1, 1, &fd), 0);
-    g_free(buf);
+    dlp_mem_free(&buf);
 }
 
 static void test_preload_global_init(void **state)

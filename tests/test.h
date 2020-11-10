@@ -18,6 +18,7 @@
 #include <glib.h>
 
 #include "dlp.h"
+#include "dlp_mem.h"
 #include "dlp_overflow.h"
 
 #define TEST_ARRAY_LEN(a) (sizeof(a) / sizeof(*(a)))
@@ -29,7 +30,7 @@
         g_print("[%d] %s\n", (err)->code, (err)->message);                     \
         assert_int_equal((err)->code, c);                                      \
         assert_true(g_pattern_match_simple(err_pattern, (err)->message));      \
-        g_free(err_pattern);                                                   \
+        dlp_mem_free(&err_pattern);                                            \
         g_error_free(err);                                                     \
         err = NULL;                                                            \
     } while (0)
@@ -51,13 +52,13 @@
             assert_false(dlp_overflow_add(fd_s.st_size, 1, &fd_size));         \
             assert_true(fd_size <= RSIZE_MAX);                                 \
                                                                                \
-            fd_content = g_malloc0(fd_size);                                   \
+            fd_content = dlp_mem_alloc(fd_size);                               \
             assert_int_equal(read(fd, fd_content, fd_size), fd_ssize);         \
             assert_string_equal(fd_content, fd_str);                           \
-            g_free(fd_content);                                                \
+            dlp_mem_free(&fd_content);                                         \
             assert_int_equal(lseek(fd, 0, SEEK_SET), 0);                       \
         }                                                                      \
-        g_free(fd_str);                                                        \
+        dlp_mem_free(&fd_str);                                                 \
     } while (0)
 
 bool test_setup_home(char **path) DLP_NODISCARD;
