@@ -54,7 +54,7 @@ bool dlp_fs_walk(const char *path, dlp_fs_walk_cb cb, void *data,
     errno = 0;
     if (fstat(fd, &s) != 0) {
         g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
-        close(fd); /* return code ignored */
+        DLP_DISCARD(dlp_fs_close(&fd, NULL));
         return false;
     }
 
@@ -327,8 +327,7 @@ bool dlp_fs_mkstemp(int *fd, GError **error)
     errno = 0;
     if (unlink(tmp) != 0) {
         g_set_error(error, DLP_ERROR, errno, "%s: %s", tmp, g_strerror(errno));
-        close(*fd); /* return code ignored */
-        *fd = -1;
+        DLP_DISCARD(dlp_fs_close(fd, NULL));
         g_free(tmp);
         return false;
     }
