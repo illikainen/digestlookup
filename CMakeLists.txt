@@ -102,6 +102,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL Clang)
     # With that said, UBSan and/or CFI may or may not be designed for
     # production use in other compilers where the sanitizers are available;
     # hence the COMPILER_ID conditional.
+    #
+    # TODO: evaluate SafeStack <https://clang.llvm.org/docs/SafeStack.html>.
     add_flag(RELEASE "-fsanitize-minimal-runtime")
     if(HAVE_FSANITIZE_MINIMAL_RUNTIME)
         foreach(sanitizer cfi integer nullability undefined)
