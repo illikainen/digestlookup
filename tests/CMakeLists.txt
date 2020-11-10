@@ -38,7 +38,7 @@ target_link_options(${PROJECT_NAME}_preload
 add_library(${PROJECT_NAME}_test_static STATIC ${utils})
 target_compile_definitions(${PROJECT_NAME}_test_static
     PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}"
-    PUBLIC BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
+    PUBLIC BUILD_DIR="${PROJECT_BINARY_DIR}")
 target_link_libraries(${PROJECT_NAME}_test_static PUBLIC ${PROJECT_NAME}_static)
 
 #
