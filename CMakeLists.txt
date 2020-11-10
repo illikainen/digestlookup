@@ -65,6 +65,7 @@ add_flag(ALL "-Wall")
 add_flag(ALL "-Weverything")
 add_flag(ALL "-Wextra")
 add_flag(ALL "-Wpedantic")
+add_flag(ALL "-Werror=unused-result")
 add_flag(ALL "-Wno-disabled-macro-expansion")
 add_flag(ALL "-Wno-padded")
 

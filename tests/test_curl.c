@@ -54,7 +54,7 @@ static int group_teardown(void **state)
     g_free(s->cert);
     g_free(s);
 
-    dlp_mhd_stop(mhd); /* return code ignored */
+    DLP_DISCARD(dlp_mhd_stop(mhd));
     if (!dlp_mhd_free(mhd)) {
         return -1;
     }

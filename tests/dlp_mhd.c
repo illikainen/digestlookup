@@ -47,11 +47,13 @@ struct dlp_mhd_session {
 };
 
 static void dlp_mhd_session_free(gpointer data);
-static bool dlp_mhd_lmtime(time_t time, char **str, GError **error);
+static bool dlp_mhd_lmtime(time_t time, char **str,
+                           GError **error) DLP_NODISCARD;
 static int dlp_mhd_request_cb(void *cls, struct MHD_Connection *con,
                               const char *url, const char *method,
                               const char *version, const char *upload_data,
-                              size_t *upload_data_size, void **con_cls);
+                              size_t *upload_data_size,
+                              void **con_cls) DLP_NODISCARD;
 
 bool dlp_mhd_init(struct dlp_mhd **mhd)
 {

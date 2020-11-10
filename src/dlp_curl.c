@@ -28,9 +28,10 @@ struct dlp_curl_private {
 };
 
 static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
-                                GError **error);
-static bool dlp_curl_multi_free(CURLM *multi, CURL **easy);
-static bool dlp_curl_multi_check_result(CURLM *multi, GError **error);
+                                GError **error) DLP_NODISCARD;
+static bool dlp_curl_multi_free(CURLM *multi, CURL **easy) DLP_NODISCARD;
+static bool dlp_curl_multi_check_result(CURLM *multi,
+                                        GError **error) DLP_NODISCARD;
 
 /**
  * Prepare cURL for threaded use.
@@ -181,13 +182,13 @@ bool dlp_curl_perform(CURL **easy, GError **error)
 
         if ((mc = curl_multi_perform(multi, &handles)) != CURLM_OK ||
             (mc = curl_multi_wait(multi, NULL, 0, 1000, NULL)) != CURLM_OK) {
-            dlp_curl_multi_free(multi, easy); /* return code ignored */
+            DLP_DISCARD(dlp_curl_multi_free(multi, easy));
             g_set_error(error, DLP_ERROR, mc, "%s", curl_multi_strerror(mc));
             return false;
         }
 
         if (handles < tmp && !dlp_curl_multi_check_result(multi, error)) {
-            dlp_curl_multi_free(multi, easy); /* return code ignored */
+            DLP_DISCARD(dlp_curl_multi_free(multi, easy));
             return false;
         }
     }
@@ -267,14 +268,14 @@ static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
 
     for (count = 0, e = easy; *e != NULL; e++) {
         if (!dlp_curl_info(*e, CURLINFO_PRIVATE, &priv) || priv == NULL) {
-            dlp_curl_multi_free(m, easy); /* return code ignored */
+            DLP_DISCARD(dlp_curl_multi_free(m, easy));
             g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
                         _("unknown easy handle"));
             return false;
         }
 
         if ((mc = curl_multi_add_handle(m, *e)) != CURLM_OK) {
-            dlp_curl_multi_free(m, easy); /* return code ignored */
+            DLP_DISCARD(dlp_curl_multi_free(m, easy));
             g_set_error(error, DLP_ERROR, mc, "%s", curl_multi_strerror(mc));
             return false;
         }
@@ -282,7 +283,7 @@ static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
         priv->multi = m;
 
         if (dlp_overflow_add(count, 1, &count)) {
-            dlp_curl_multi_free(m, easy); /* return code ignored */
+            DLP_DISCARD(dlp_curl_multi_free(m, easy));
             g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
                         g_strerror(EOVERFLOW));
             return false;

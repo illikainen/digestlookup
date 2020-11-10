@@ -17,6 +17,7 @@
 #include <cmocka.h>
 #include <glib.h>
 
+#include "dlp.h"
 #include "dlp_overflow.h"
 
 #define TEST_ARRAY_LEN(a) (sizeof(a) / sizeof(*(a)))
@@ -59,6 +60,6 @@
         g_free(fd_str);                                                        \
     } while (0)
 
-bool test_setup_home(char **path);
+bool test_setup_home(char **path) DLP_NODISCARD;
 
 #endif /* TEST_H */

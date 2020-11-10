@@ -17,6 +17,7 @@
 #include <curl/curl.h>
 #include <glib.h>
 
+#include "dlp.h"
 #include "dlp_overflow.h"
 
 typedef DIR *(*fdopendir_fn)(int fd);
@@ -36,7 +37,7 @@ typedef int (*__xstat_fn)(int ver, const char *path, struct stat *s);
 typedef CURL *(*curl_easy_init_fn)(void);
 typedef CURLcode (*curl_global_init_fn)(long flags);
 
-static void *dlp_preload_sym(const char *sym)
+DLP_NODISCARD static void *dlp_preload_sym(const char *sym)
 {
     void *fn;
 
@@ -48,7 +49,7 @@ static void *dlp_preload_sym(const char *sym)
     return fn;
 }
 
-static bool dlp_preload_get_env(const char *name, char **value)
+DLP_NODISCARD static bool dlp_preload_get_env(const char *name, char **value)
 {
     GString *str;
     char *env;
@@ -63,7 +64,7 @@ static bool dlp_preload_get_env(const char *name, char **value)
     return *value != NULL;
 }
 
-static bool dlp_preload_get_ll(const char *name, long long *value)
+DLP_NODISCARD static bool dlp_preload_get_ll(const char *name, long long *value)
 {
     char *str;
 
@@ -84,14 +85,14 @@ static bool dlp_preload_get_ll(const char *name, long long *value)
     return false;
 }
 
-static bool dlp_preload_get_int(const char *name, int *value)
+DLP_NODISCARD static bool dlp_preload_get_int(const char *name, int *value)
 {
     long long ll;
 
     return dlp_preload_get_ll(name, &ll) && !dlp_overflow_add(ll, 0, value);
 }
 
-static bool dlp_preload_get_uid(const char *name, uid_t *value)
+DLP_NODISCARD static bool dlp_preload_get_uid(const char *name, uid_t *value)
 {
     long long ll;
 

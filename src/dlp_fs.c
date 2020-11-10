@@ -16,11 +16,13 @@
 #include "config.h"
 #include "dlp_error.h"
 
-static bool dlp_fs_user_dir(const char *base, char **path, GError **error);
+static bool dlp_fs_user_dir(const char *base, char **path,
+                            GError **error) DLP_NODISCARD;
 static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
-                           void *data, GError **error);
+                           void *data, GError **error) DLP_NODISCARD;
 static bool dlp_fs_rmdir_cb(int fd, const char *name, const char *path,
-                            const struct stat *s, void *data, GError **error);
+                            const struct stat *s, void *data,
+                            GError **error) DLP_NODISCARD;
 
 /**
  * Traverse a file hierarchy.
@@ -91,12 +93,12 @@ bool dlp_fs_openat(int dfd, const char *path, int flags, mode_t mode, int *fd,
     errno = 0;
     if (fstat(*fd, &s) != 0) {
         g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
-        dlp_fs_close(fd, NULL); /* return code ignored */
+        DLP_DISCARD(dlp_fs_close(fd, NULL));
         return false;
     }
 
     if (!dlp_fs_check_stat(&s, error)) {
-        dlp_fs_close(fd, NULL); /* return code ignored */
+        DLP_DISCARD(dlp_fs_close(fd, NULL));
         return false;
     }
 

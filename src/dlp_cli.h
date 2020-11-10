@@ -10,7 +10,8 @@
 #include <errno.h>
 
 #include "config.h"
+#include "dlp.h"
 
-errno_t dlp_cli(void);
+errno_t dlp_cli(void) DLP_NODISCARD;
 
 #endif /* DLP_CLI_H */
