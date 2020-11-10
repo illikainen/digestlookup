@@ -60,6 +60,7 @@ endif()
 #
 add_flag(ALL "-D__STDC_WANT_LIB_EXT1__=1")
 add_flag(ALL "-D_POSIX_C_SOURCE=200809L")
+add_flag(ALL "-D_FILE_OFFSET_BITS=64")
 add_flag(ALL "-W")
 add_flag(ALL "-Wall")
 add_flag(ALL "-Weverything")
