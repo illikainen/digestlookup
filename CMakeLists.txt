@@ -87,7 +87,7 @@ add_flag(ALL "-Wl,--high-entropy-va")
 #
 # Flags for release builds.
 #
-if(CMAKE_C_COMPILER_ID STREQUAL Clang AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)
+if(CMAKE_C_COMPILER_ID STREQUAL Clang)
     # UBSan has a minimal runtime that's appropriate for release builds:
     # <https://clang.llvm.org/docs/UndefinedBehaviorSanitizer.html>
     #
