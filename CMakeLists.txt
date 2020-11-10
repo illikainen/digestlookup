@@ -154,9 +154,6 @@ configure_file(src/config.h.in config.h)
 #
 include_directories("${CMAKE_CURRENT_BINARY_DIR}")
 include_directories("${CMAKE_SOURCE_DIR}/src")
-get_property(include_dirs
-    DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    PROPERTY INCLUDE_DIRECTORIES)
 
 #
 # Enable CTest.
