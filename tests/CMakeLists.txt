@@ -1,13 +1,3 @@
-pkg_check_modules(CMOCKA cmocka)
-if(NOT CMOCKA_FOUND)
-    message(FATAL_ERROR "Cannot find cmocka")
-endif()
-
-pkg_check_modules(LIBMICROHTTPD libmicrohttpd)
-if(NOT LIBMICROHTTPD_FOUND)
-    message(FATAL_ERROR "Cannot find libmicrohttpd")
-endif()
-
 file(GLOB_RECURSE tests
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_DEPENDS
@@ -42,18 +32,24 @@ endif()
 target_link_options(${PROJECT_NAME}_preload
     PRIVATE -Wl,-z,undefs)
 
+#
+# Static test library.
+#
 add_library(${PROJECT_NAME}_test_static STATIC ${utils})
 target_compile_definitions(${PROJECT_NAME}_test_static
     PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}"
     PUBLIC BUILD_DIR="${CMAKE_CURRENT_BINARY_DIR}")
-target_include_directories(${PROJECT_NAME}_test_static
-    SYSTEM PUBLIC ${CMOCKA_INCLUDE_DIRS}
-    SYSTEM PUBLIC ${LIBMICROHTTPD_INCLUDE_DIRS})
-target_link_libraries(${PROJECT_NAME}_test_static
-    PUBLIC ${PROJECT_NAME}_static
-    PUBLIC ${CMOCKA_LINK_LIBRARIES}
-    PUBLIC ${LIBMICROHTTPD_LINK_LIBRARIES})
+target_link_libraries(${PROJECT_NAME}_test_static PUBLIC ${PROJECT_NAME}_static)
 
+#
+# Dependencies.
+#
+add_pkg_config(TARGET ${PROJECT_NAME}_test_static PKG cmocka REQUIRED)
+add_pkg_config(TARGET ${PROJECT_NAME}_test_static PKG libmicrohttpd REQUIRED)
+
+#
+# Tests.
+#
 foreach(test ${tests})
     string(REGEX REPLACE "/" "-" test_bin ${test})
     string(REGEX REPLACE "\.c$" "" test_bin ${test_bin})
