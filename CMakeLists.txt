@@ -124,7 +124,7 @@ add_flag(RELEASE "-pie")
 #
 add_flag(DEBUG "-O0")
 add_flag(DEBUG "-fno-omit-frame-pointer")
-add_flag(DEBUG "-fprofile-instr-generate=instr-%m.profraw")
+add_flag(DEBUG "-fprofile-instr-generate=instr-%m%c.profraw")
 add_flag(DEBUG "-fcoverage-mapping")
 
 # FIXME: investigate why ASan with gcc 8.3.0 occasionally enters a seemingly
