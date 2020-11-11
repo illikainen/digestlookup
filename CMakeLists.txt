@@ -28,6 +28,7 @@ project(digestlookup VERSION 0.0.0 LANGUAGES C)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake")
 include(AddCURL)
 include(AddFlag)
+include(AddGPGME)
 include(AddPkgConfig)
 include(AddThreads)
 include(CheckIPOSupported)
@@ -143,6 +144,8 @@ endif()
 # Dependencies.
 #
 add_curl(REQUIRED)
+add_gpgme(REQUIRED THREAD pthread)
+add_pkg_config(PKG gio-2.0 REQUIRED)
 add_pkg_config(PKG glib-2.0 REQUIRED)
 add_threads(REQUIRED)
 

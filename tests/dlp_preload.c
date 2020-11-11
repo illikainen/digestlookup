@@ -16,6 +16,7 @@
 
 #include <curl/curl.h>
 #include <glib.h>
+#include <gpgme.h>
 
 #include "dlp.h"
 #include "dlp_mem.h"
@@ -37,6 +38,12 @@ typedef int (*__fxstatat_fn)(int ver, int fd, const char *path, struct stat *s,
 typedef int (*__xstat_fn)(int ver, const char *path, struct stat *s);
 typedef CURL *(*curl_easy_init_fn)(void);
 typedef CURLcode (*curl_global_init_fn)(long flags);
+typedef const char *(*gpgme_check_version_internal_fn)(const char *req_version,
+                                                       size_t offset);
+typedef gpgme_error_t (*gpgme_engine_check_version_fn)(gpgme_protocol_t proto);
+typedef gpgme_error_t (*gpgme_data_new_from_fd_fn)(gpgme_data_t *dh, int fd);
+typedef gpgme_protocol_t (*gpgme_get_protocol_fn)(gpgme_ctx_t ctx);
+typedef int (*gpgme_strerror_r_fn)(gpg_error_t err, char *buf, size_t buflen);
 
 DLP_NODISCARD static void *dlp_preload_sym(const char *sym)
 {
@@ -368,4 +375,95 @@ CURLcode curl_global_init(long flags)
     }
 
     return fn(flags);
+}
+
+/* cppcheck-suppress unusedFunction */
+const char *gpgme_check_version_internal(const char *req_version, size_t offset)
+{
+    static gpgme_check_version_internal_fn fn;
+    int rv;
+
+    if (fn == NULL) {
+        fn = (gpgme_check_version_internal_fn)dlp_preload_sym("gpgme_check_"
+                                                              "version_"
+                                                              "internal");
+    }
+
+    if (dlp_preload_get_int("gpgme_check_version_internal_rv", &rv)) {
+        return NULL;
+    }
+
+    return fn(req_version, offset);
+}
+
+gpgme_error_t gpgme_engine_check_version(gpgme_protocol_t proto)
+{
+    static gpgme_engine_check_version_fn fn;
+    gpgme_error_t err;
+    int rv;
+
+    if (fn == NULL) {
+        fn = (gpgme_engine_check_version_fn)dlp_preload_sym("gpgme_engine_"
+                                                            "check_version");
+    }
+
+    if (dlp_preload_get_int("gpgme_engine_check_version_rv", &rv) &&
+        !dlp_overflow_add(rv, 0, &err)) {
+        return err;
+    }
+
+    return fn(proto);
+}
+
+gpgme_error_t gpgme_data_new_from_fd(gpgme_data_t *dh, int fd)
+{
+    static gpgme_data_new_from_fd_fn fn;
+    gpgme_error_t err;
+    int rv;
+
+    if (fn == NULL) {
+        fn = (gpgme_data_new_from_fd_fn)dlp_preload_sym("gpgme_data_new_from_"
+                                                        "fd");
+    }
+
+    if (dlp_preload_get_int("gpgme_data_new_from_fd_rv", &rv) &&
+        !dlp_overflow_add(rv, 0, &err)) {
+        return err;
+    }
+
+    return fn(dh, fd);
+}
+
+gpgme_protocol_t gpgme_get_protocol(gpgme_ctx_t ctx)
+{
+    static gpgme_get_protocol_fn fn;
+    gpgme_protocol_t proto;
+    int rv;
+
+    if (fn == NULL) {
+        fn = (gpgme_get_protocol_fn)dlp_preload_sym("gpgme_get_protocol");
+    }
+
+    if (dlp_preload_get_int("gpgme_get_protocol_rv", &rv) &&
+        !dlp_overflow_add(rv, 0, &proto)) {
+        return proto;
+    }
+
+    return fn(ctx);
+}
+
+int gpgme_strerror_r(gpg_error_t err, char *buf, size_t buflen)
+{
+    static gpgme_strerror_r_fn fn;
+    int rv;
+
+    if (fn == NULL) {
+        fn = (gpgme_strerror_r_fn)dlp_preload_sym("gpgme_strerror_r");
+    }
+
+    if (dlp_preload_get_int("gpgme_strerror_r_rv", &rv)) {
+        return rv;
+    }
+
+    return fn(err, buf, buflen);
 }
