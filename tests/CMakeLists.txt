@@ -1,3 +1,5 @@
+include(AddWraps)
+
 file(GLOB_RECURSE tests
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_DEPENDS
@@ -8,30 +10,6 @@ file(GLOB_RECURSE utils
     CONFIGURE_DEPENDS
     "test.c" "dlp_*.c")
 
-# Clang CFI requires LTO.  However, LTO seems incompatible with symbol wrapping
-# in GNU ld [1][2].
-#
-# LD_PRELOAD also seems broken with CFI, but CFI (and other sanitizers) can be
-# disabled for only the preload library.  So, LD_PRELOAD is currently used for
-# mocking.  Meh...
-#
-# See:
-# [1] https://bugzilla.redhat.com/show_bug.cgi?id=1693831
-# [2] https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88643
-list(REMOVE_ITEM utils "dlp_preload.c")
-set(preload ${CMAKE_CURRENT_BINARY_DIR}/lib${PROJECT_NAME}_preload.so)
-add_library(${PROJECT_NAME}_preload SHARED dlp_preload.c)
-target_compile_definitions(${PROJECT_NAME}_preload
-    PRIVATE -D_GNU_SOURCE)
-target_compile_options(${PROJECT_NAME}_preload
-    PRIVATE -fvisibility=default)
-if(CMAKE_C_COMPILER_ID STREQUAL Clang)
-    target_compile_options(${PROJECT_NAME}_preload
-        PRIVATE -fno-sanitize=address -fno-sanitize=cfi -fno-sanitize=undefined)
-endif()
-target_link_options(${PROJECT_NAME}_preload
-    PRIVATE -Wl,-z,undefs)
-
 #
 # Static test library.
 #
@@ -40,6 +18,20 @@ target_compile_definitions(${PROJECT_NAME}_test_static
     PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}"
     PUBLIC BUILD_DIR="${PROJECT_BINARY_DIR}")
 target_link_libraries(${PROJECT_NAME}_test_static PUBLIC ${PROJECT_NAME}_static)
+
+# Clang CFI requires LTO.  However, symbol wrapping in BFD 2.31.1 seems broken
+# in LTO builds; but gold (ELF-only) works with Clang.  GCC doesn't seem to
+# play well with either gold or BFD.
+#
+# See:
+# - https://bugzilla.redhat.com/show_bug.cgi?id=1693831
+# - https://gcc.gnu.org/bugzilla/show_bug.cgi?id=88643
+# - https://sourceware.org/bugzilla/show_bug.cgi?id=24406
+if(UNIX AND CMAKE_C_COMPILER_ID STREQUAL Clang)
+    target_compile_definitions(${PROJECT_NAME}_test_static PUBLIC TEST_WRAP)
+    target_link_options(${PROJECT_NAME}_test_static PUBLIC -fuse-ld=gold)
+    add_wraps(${PROJECT_NAME}_test_static PUBLIC test.c)
+endif()
 
 #
 # Dependencies.
@@ -58,6 +50,5 @@ foreach(test ${tests})
     add_test(${test_bin} ${test_bin})
     target_link_libraries(${test_bin} PRIVATE ${PROJECT_NAME}_test_static)
     set_tests_properties(${test_bin} PROPERTIES
-        ENVIRONMENT G_DEBUG=fatal-warnings
-        ENVIRONMENT LD_PRELOAD=${preload})
+        ENVIRONMENT G_DEBUG=fatal-warnings)
 endforeach()

@@ -15,7 +15,9 @@
 #include <sys/stat.h>
 
 #include <cmocka.h>
+#include <curl/curl.h>
 #include <glib.h>
+#include <gpgme.h>
 
 #include "dlp.h"
 #include "dlp_mem.h"
@@ -61,6 +63,79 @@
         dlp_mem_free(&fd_str);                                                 \
     } while (0)
 
+#define test_wrap_push(fn, wrp, value)                                         \
+    test_wrap_push_impl("__wrap_" #fn, wrp, value)
+#define test_wrap_pop(def) test_wrap_pop_impl(__func__, def)
+
+struct test_wrap;
+
+bool test_wrap_p(void) DLP_NODISCARD;
+void test_wrap_push_impl(const char *fn, bool wrap, void *value);
+bool test_wrap_pop_impl(const char *fn, struct test_wrap *elt);
 bool test_setup_home(char **path) DLP_NODISCARD;
+
+uid_t __wrap_getuid(void);
+uid_t __real_getuid(void);
+
+uid_t __wrap_getgid(void);
+uid_t __real_getgid(void);
+
+int __wrap_close(int fd);
+int __real_close(int fd);
+
+int __wrap_unlink(const char *path);
+int __real_unlink(const char *path);
+
+int __wrap_unlinkat(int fd, const char *path, int flag);
+int __real_unlinkat(int fd, const char *path, int flag);
+
+int __wrap___xstat64(int ver, const char *path, struct stat *s);
+int __real___xstat64(int ver, const char *path, struct stat *s);
+
+int __wrap___fxstat64(int ver, int fd, struct stat *s);
+int __real___fxstat64(int ver, int fd, struct stat *s);
+
+int __wrap___fxstatat64(int ver, int fd, const char *path, struct stat *s,
+                        int flag);
+int __real___fxstatat64(int ver, int fd, const char *path, struct stat *s,
+                        int flag);
+
+char *__wrap_mkdtemp(char *template);
+char *__real_mkdtemp(char *template);
+
+int __wrap_mkstemp64(char *template);
+int __real_mkstemp64(char *template);
+
+DIR *__wrap_fdopendir(int fd);
+DIR *__real_fdopendir(int fd);
+
+int __wrap_closedir(DIR *dir);
+int __real_closedir(DIR *dir);
+
+struct dirent *__wrap_readdir64(DIR *dir);
+struct dirent *__real_readdir64(DIR *dir);
+
+CURLcode __wrap_curl_global_init(long flags);
+CURLcode __real_curl_global_init(long flags);
+
+CURL *__wrap_curl_easy_init(void);
+CURL *__real_curl_easy_init(void);
+
+const char *__wrap_gpgme_check_version_internal(const char *req_version,
+                                                size_t offset);
+const char *__real_gpgme_check_version_internal(const char *req_version,
+                                                size_t offset);
+
+gpgme_error_t __wrap_gpgme_engine_check_version(gpgme_protocol_t proto);
+gpgme_error_t __real_gpgme_engine_check_version(gpgme_protocol_t proto);
+
+gpgme_protocol_t __wrap_gpgme_get_protocol(gpgme_ctx_t ctx);
+gpgme_protocol_t __real_gpgme_get_protocol(gpgme_ctx_t ctx);
+
+int __wrap_gpgme_strerror_r(gpg_error_t err, char *buf, size_t buflen);
+int __real_gpgme_strerror_r(gpg_error_t err, char *buf, size_t buflen);
+
+gpgme_error_t __wrap_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd);
+gpgme_error_t __real_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd);
 
 #endif /* TEST_H */

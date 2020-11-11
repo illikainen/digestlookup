@@ -109,6 +109,7 @@ static bool read_all(int fd, char **buf)
 
 static void test_gpg_global_init(gpointer data, gconstpointer user_data)
 {
+    gpgme_error_t rv;
     GError *err = NULL;
 
     (void)data;
@@ -117,22 +118,17 @@ static void test_gpg_global_init(gpointer data, gconstpointer user_data)
     g_assert_true(dlp_gpg_global_init(&err));
     g_assert_no_error(err);
 
-    if (getenv("LD_PRELOAD") != NULL) {
-        const char *env;
-
-        env = "DLP_PRELOAD_GPGME_CHECK_VERSION_INTERNAL_RV";
-        g_assert_true(setenv(env, "1", 1) == 0);
+    if (test_wrap_p()) {
+        test_wrap_push(gpgme_check_version_internal, true, NULL);
         g_assert_false(dlp_gpg_global_init(&err));
         g_assert_error(err, DLP_ERROR, GPG_ERR_NOT_INITIALIZED);
         g_clear_error(&err);
-        g_assert_true(unsetenv(env) == 0);
 
-        env = "DLP_PRELOAD_GPGME_ENGINE_CHECK_VERSION_RV";
-        g_assert_true(setenv(env, "123", 1) == 0);
+        rv = 123;
+        test_wrap_push(gpgme_engine_check_version, true, &rv);
         g_assert_false(dlp_gpg_global_init(&err));
         g_assert_error(err, DLP_ERROR, 123);
         g_clear_error(&err);
-        g_assert_true(unsetenv(env) == 0);
     }
 }
 

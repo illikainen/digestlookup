@@ -151,7 +151,9 @@ static void test_walk_cb_failure(void **state)
 static void test_walk_filelist(void **state)
 {
     guint i;
+    errno_t e;
     GList *got;
+    GError *err = NULL;
     GList *want = NULL;
     static struct walk_data wd = { .rv = true, .list = NULL };
 
@@ -202,6 +204,50 @@ static void test_walk_filelist(void **state)
 
     g_list_free(want);
     g_list_free_full(got, g_free);
+
+    if (test_wrap_p()) {
+        /* fdopendir() failure */
+        e = EACCES;
+        test_wrap_push(fdopendir, true, &e);
+        assert_false(dlp_fs_walk("a", test_walk_filelist_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        g_clear_error(&err);
+
+        /* readdir() failure */
+        e = EBADF;
+        test_wrap_push(readdir64, true, &e);
+        assert_false(dlp_fs_walk("a", test_walk_filelist_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        g_clear_error(&err);
+
+        /* closedir() failure */
+        e = EBADF;
+        test_wrap_push(closedir, true, &e);
+        assert_false(dlp_fs_walk("a", test_walk_filelist_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        g_clear_error(&err);
+
+        /* fstat() failure */
+        e = ENAMETOOLONG;
+        test_wrap_push(__fxstat64, true, &e);
+        assert_false(dlp_fs_walk("a", test_walk_filelist_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        g_clear_error(&err);
+
+        e = ENONET;
+        test_wrap_push(__fxstat64, true, &e);
+        test_wrap_push(__fxstat64, false, NULL);
+        assert_false(dlp_fs_walk("a", test_walk_filelist_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        g_clear_error(&err);
+
+        /* fstatat() failure */
+        e = EACCES;
+        test_wrap_push(__fxstatat64, true, &e);
+        assert_false(dlp_fs_walk("a", test_walk_filelist_cb, &wd, &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        g_clear_error(&err);
+    }
 
     assert_true(dlp_fs_rmdir("a", NULL));
     assert_true(dlp_fs_rmdir("b", NULL));
@@ -334,6 +380,13 @@ static void test_openat(void **state)
     assert_non_null(err);
     g_clear_error(&err);
     assert_int_equal(fchmod(fd, mode), 0);
+
+    if (test_wrap_p()) {
+        tmp = EBADF;
+        test_wrap_push(__fxstat64, true, &tmp);
+        assert_false(dlp_fs_openat(AT_FDCWD, "fstat", flags, mode, &fd, &err));
+        TEST_ASSERT_ERR(err, EBADF, "*");
+    }
 }
 
 static void test_open(void **state)
@@ -382,6 +435,7 @@ static void test_open(void **state)
 static void test_close(void **state)
 {
     int fd;
+    errno_t e;
     GError *err = NULL;
     int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
     mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
@@ -401,6 +455,16 @@ static void test_close(void **state)
     assert_true(dlp_fs_close(&fd, &err));
     assert_int_equal(fd, -1);
     assert_null(err);
+
+    if (test_wrap_p()) {
+        e = EBADF;
+        test_wrap_push(close, true, &e);
+        assert_true(dlp_fs_open("close", flags, mode, &fd, &err));
+        assert_false(dlp_fs_close(&fd, &err));
+        assert_int_equal(fd, -1);
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+    }
 }
 
 static void test_seek(void **state)
@@ -473,6 +537,9 @@ static void test_mkdir(void **state)
     char *p;
     char *sp;
     struct stat st;
+    errno_t e;
+    uid_t uid;
+    gid_t gid;
     GError *err = NULL;
 
     (void)state;
@@ -508,6 +575,26 @@ static void test_mkdir(void **state)
 
     dlp_mem_free(&p);
     dlp_mem_free(&sp);
+
+    if (test_wrap_p()) {
+        /* stat() failure */
+        e = EACCES;
+        test_wrap_push(__xstat64, true, &e);
+        assert_false(dlp_fs_mkdir("stat", &err));
+        TEST_ASSERT_ERR(err, e, "*");
+
+        /* getuid() failure */
+        uid = 12345;
+        test_wrap_push(getuid, true, &uid);
+        assert_false(dlp_fs_mkdir("getuid", &err));
+        TEST_ASSERT_ERR(err, EBADFD, "*");
+
+        /* getgid() failure */
+        gid = 12345;
+        test_wrap_push(getgid, true, &gid);
+        assert_false(dlp_fs_mkdir("getuid", &err));
+        TEST_ASSERT_ERR(err, EBADFD, "*");
+    }
 }
 
 /*
@@ -516,6 +603,7 @@ static void test_mkdir(void **state)
 static void test_rmdir(void **state)
 {
     struct stat s;
+    errno_t e;
     GError *err = NULL;
 
     (void)state;
@@ -562,6 +650,15 @@ static void test_rmdir(void **state)
     assert_int_equal(stat("b", &s), 0);
     assert_int_equal(stat("b/c/d", &s), 0);
 
+    if (test_wrap_p()) {
+        /* unlinkat() failure */
+        e = EACCES;
+        test_wrap_push(unlinkat, true, &e);
+        assert_false(dlp_fs_rmdir("b", &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        assert_int_equal(stat("b", &s), 0);
+    }
+
     /* successful removal of b */
     assert_true(dlp_fs_rmdir("b", &err));
     assert_null(err);
@@ -573,6 +670,7 @@ static void test_mkdtemp(void **state)
     char *cache;
     char *path;
     struct stat st;
+    errno_t e;
     GError *err = NULL;
     struct state *s = *state;
 
@@ -596,12 +694,21 @@ static void test_mkdtemp(void **state)
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(st.st_mode & (mode_t)~S_IFMT, S_IRWXU);
     dlp_mem_free(&path);
+
+    /* mkdtemp failure */
+    if (test_wrap_p()) {
+        e = 5;
+        test_wrap_push(mkdtemp, true, &e);
+        assert_false(dlp_fs_mkdtemp(&path, &err));
+        TEST_ASSERT_ERR(err, 5, "*");
+    }
 }
 
 static void test_mkstemp(void **state)
 {
     char *cache;
     int fd;
+    errno_t e;
     GError *err = NULL;
 
     (void)state;
@@ -620,221 +727,19 @@ static void test_mkstemp(void **state)
     assert_true(dlp_fs_mkstemp(&fd, &err));
     assert_null(err);
     assert_int_equal(close(fd), 0);
-}
 
-static void test_preload_walk_fdopendir(void **state)
-{
-    GError *err = NULL;
-    struct walk_data wd = { .rv = true };
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_mkdir("fdopendir", NULL));
-        assert_int_equal(setenv("DLP_PRELOAD_FDOPENDIR_RV", "-1", 1), 0);
-        assert_false(dlp_fs_walk("fdopendir", test_walk_retval_cb, &wd, &err));
-        TEST_ASSERT_ERR(err, EACCES, "*denied*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_FDOPENDIR_RV"), 0);
-        assert_int_equal(rmdir("fdopendir"), 0);
-    }
-}
-
-static void test_preload_walk_readdir(void **state)
-{
-    GError *err = NULL;
-    struct walk_data wd = { .rv = true };
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_mkdir("readdir", NULL));
-        assert_int_equal(setenv("DLP_PRELOAD_READDIR_RV", "-1", 1), 0);
-        assert_false(dlp_fs_walk("readdir", test_walk_retval_cb, &wd, &err));
-        TEST_ASSERT_ERR(err, EOVERFLOW, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_READDIR_RV"), 0);
-        assert_int_equal(rmdir("readdir"), 0);
-    }
-}
-
-static void test_preload_walk_closedir(void **state)
-{
-    GError *err = NULL;
-    struct walk_data wd = { .rv = true };
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_mkdir("closedir", NULL));
-        assert_int_equal(setenv("DLP_PRELOAD_CLOSEDIR_RV", "-1", 1), 0);
-        assert_false(dlp_fs_walk("closedir", test_walk_retval_cb, &wd, &err));
-        TEST_ASSERT_ERR(err, EACCES, "*denied*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_CLOSEDIR_RV"), 0);
-        assert_int_equal(rmdir("closedir"), 0);
-    }
-}
-
-static void test_preload_walk_fstat(void **state)
-{
-    GError *err = NULL;
-    struct walk_data wd = { .rv = true };
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_mkdir("fstat", NULL));
-        assert_int_equal(setenv("DLP_PRELOAD_FSTAT_RV", "-1", 1), 0);
-        assert_false(dlp_fs_walk("fstat", test_walk_retval_cb, &wd, &err));
-        TEST_ASSERT_ERR(err, EACCES, "*denied*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_FSTAT_RV"), 0);
-        assert_int_equal(rmdir("fstat"), 0);
-    }
-}
-
-/*
- * FIXME: hardcoded path separator.
- */
-static void test_preload_walk_fstatat(void **state)
-{
-    GError *err = NULL;
-    struct walk_data wd = { .rv = true };
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_mkdir("fstatat/foo", NULL));
-        assert_int_equal(setenv("DLP_PRELOAD_FSTATAT_RV", "-1", 1), 0);
-        assert_false(dlp_fs_walk("fstatat", test_walk_retval_cb, &wd, &err));
-        TEST_ASSERT_ERR(err, EACCES, "*denied*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_FSTATAT_RV"), 0);
-        assert_true(dlp_fs_rmdir("fstatat", NULL));
-    }
-}
-
-static void test_preload_rmdir_unlinkat(void **state)
-{
-    struct stat s;
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_mkdir("unlinkat", NULL));
-        assert_int_equal(setenv("DLP_PRELOAD_UNLINKAT_RV", "1", 1), 0);
-        assert_false(dlp_fs_rmdir("unlinkat", &err));
-        TEST_ASSERT_ERR(err, EACCES, "*denied*");
-        assert_int_equal(stat("unlinkat", &s), 0);
-        assert_int_equal(unsetenv("DLP_PRELOAD_UNLINKAT_RV"), 0);
-        assert_true(dlp_fs_rmdir("unlinkat", NULL));
-    }
-}
-
-static void test_preload_mkdir_stat(void **state)
-{
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_int_equal(setenv("DLP_PRELOAD_STAT_RV", "-1", 1), 0);
-        assert_false(dlp_fs_mkdir("stat", &err));
-        TEST_ASSERT_ERR(err, EACCES, "*denied*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_STAT_RV"), 0);
-    }
-}
-
-static void test_preload_mkdir_owner(void **state)
-{
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_int_equal(setenv("DLP_PRELOAD_GETUID_RV", "12345", 1), 0);
-        assert_false(dlp_fs_mkdir("getuid", &err));
-        TEST_ASSERT_ERR(err, EBADFD, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_GETUID_RV"), 0);
-
-        assert_int_equal(setenv("DLP_PRELOAD_GETGID_RV", "12345", 1), 0);
-        assert_false(dlp_fs_mkdir("getgid", &err));
-        TEST_ASSERT_ERR(err, EBADFD, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_GETGID_RV"), 0);
-    }
-}
-
-static void test_preload_mkdtemp(void **state)
-{
-    char *path;
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_int_equal(setenv("DLP_PRELOAD_MKDTEMP_ERRNO", "5", 1), 0);
-        assert_false(dlp_fs_mkdtemp(&path, &err));
-        TEST_ASSERT_ERR(err, 5, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_MKDTEMP_ERRNO"), 0);
-    }
-}
-
-static void test_preload_mkstemp(void **state)
-{
-    int fd;
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        /* mkstemp() failure */
-        assert_int_equal(setenv("DLP_PRELOAD_MKSTEMP_ERRNO", "5", 1), 0);
+    if (test_wrap_p()) {
+        e = EEXIST;
+        test_wrap_push(mkstemp64, true, &e);
         assert_false(dlp_fs_mkstemp(&fd, &err));
         assert_int_equal(fd, -1);
-        TEST_ASSERT_ERR(err, 5, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_MKSTEMP_ERRNO"), 0);
+        TEST_ASSERT_ERR(err, e, "*");
 
-        /* unlink() failure */
-        assert_int_equal(setenv("DLP_PRELOAD_UNLINK_ERRNO", "4", 1), 0);
+        e = EACCES;
+        test_wrap_push(unlink, true, &e);
         assert_false(dlp_fs_mkstemp(&fd, &err));
         assert_int_equal(fd, -1);
-        TEST_ASSERT_ERR(err, 4, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_UNLINK_ERRNO"), 0);
-    }
-}
-
-static void test_preload_openat(void **state)
-{
-    int fd;
-    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
-    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_int_equal(setenv("DLP_PRELOAD_FSTAT_RV", "-1", 1), 0);
-        assert_false(dlp_fs_openat(AT_FDCWD, "open", flags, mode, &fd, &err));
-        assert_non_null(err);
-        g_clear_error(&err);
-        assert_int_equal(unsetenv("DLP_PRELOAD_FSTAT_RV"), 0);
-    }
-}
-
-static void test_preload_close(void **state)
-{
-    int fd;
-    int flags = O_RDWR | O_CREAT; /* NOLINT(hicpp-signed-bitwise) */
-    mode_t mode = S_IRUSR | S_IWUSR; /* NOLINT(hicpp-signed-bitwise) */
-    GError *err = NULL;
-
-    (void)state;
-
-    if (getenv("LD_PRELOAD") != NULL) {
-        assert_true(dlp_fs_openat(AT_FDCWD, "close", flags, mode, &fd, &err));
-
-        assert_int_equal(setenv("DLP_PRELOAD_CLOSE_ERRNO", "123", 1), 0);
-        assert_false(dlp_fs_close(&fd, &err));
-        assert_int_equal(fd, -1);
-        TEST_ASSERT_ERR(err, 123, "*");
-        assert_int_equal(unsetenv("DLP_PRELOAD_CLOSE_ERRNO"), 0);
+        TEST_ASSERT_ERR(err, e, "*");
     }
 }
 
@@ -855,18 +760,6 @@ int main(void)
         cmocka_unit_test(test_walk_symlink),
         cmocka_unit_test(test_walk_cb_failure),
         cmocka_unit_test(test_walk_filelist),
-        cmocka_unit_test(test_preload_walk_fdopendir),
-        cmocka_unit_test(test_preload_walk_readdir),
-        cmocka_unit_test(test_preload_walk_closedir),
-        cmocka_unit_test(test_preload_walk_fstat),
-        cmocka_unit_test(test_preload_walk_fstatat),
-        cmocka_unit_test(test_preload_rmdir_unlinkat),
-        cmocka_unit_test(test_preload_mkdir_stat),
-        cmocka_unit_test(test_preload_mkdir_owner),
-        cmocka_unit_test(test_preload_mkdtemp),
-        cmocka_unit_test(test_preload_mkstemp),
-        cmocka_unit_test(test_preload_openat),
-        cmocka_unit_test(test_preload_close),
     };
 
     return cmocka_run_group_tests(tests, group_setup, group_teardown);

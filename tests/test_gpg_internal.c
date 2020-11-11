@@ -216,6 +216,7 @@ static void signatures_free(gpgme_signature_t sigs)
 
 static void test_gpg_set_error(gpointer data, gconstpointer user_data)
 {
+    int rv;
     GError *err = NULL;
 
     (void)data;
@@ -225,15 +226,14 @@ static void test_gpg_set_error(gpointer data, gconstpointer user_data)
     g_assert_error(err, DLP_ERROR, GPG_ERR_EINVAL);
     g_clear_error(&err);
 
-    if (getenv("LD_PRELOAD") != NULL) {
-        const char *env = "DLP_PRELOAD_GPGME_STRERROR_R_RV";
-        g_assert_true(setenv(env, "1", 1) == 0);
+    if (test_wrap_p()) {
+        rv = 1;
+        test_wrap_push(gpgme_strerror_r, true, &rv);
         dlp_gpg_set_error(GPG_ERR_EINVAL, &err);
         g_assert_error(err, DLP_ERROR, GPG_ERR_EINVAL);
         g_assert_nonnull(err->message);
         g_assert_cmpuint(strlen(err->message), >, 0);
         g_clear_error(&err);
-        g_assert_true(unsetenv(env) == 0);
     }
 }
 
@@ -622,6 +622,7 @@ static void test_gpg_check_signatures(gpointer data, gconstpointer user_data)
 static void test_gpg_data_from_fd(gpointer data, gconstpointer user_data)
 {
     gpgme_data_t d;
+    gpgme_error_t e;
     int fd;
     GError *err = NULL;
 
@@ -634,13 +635,12 @@ static void test_gpg_data_from_fd(gpointer data, gconstpointer user_data)
     g_assert_no_error(err);
     dlp_gpg_data_release(&d);
 
-    if (getenv("LD_PRELOAD") != NULL) {
-        const char *env = "DLP_PRELOAD_GPGME_DATA_NEW_FROM_FD_RV";
-        g_assert_true(setenv(env, "2", 1) == 0);
+    if (test_wrap_p()) {
+        e = 123;
+        test_wrap_push(gpgme_data_new_from_fd, true, &e);
         g_assert_false(dlp_gpg_data_from_fd(fd, &d, &err));
-        g_assert_error(err, DLP_ERROR, 2);
+        g_assert_error(err, DLP_ERROR, 123);
         g_clear_error(&err);
-        g_assert_true(unsetenv(env) == 0);
     }
 
     g_assert_true(dlp_fs_close(&fd, NULL));
@@ -651,6 +651,7 @@ static void test_gpg_change_owner_trust(gpointer data, gconstpointer user_data)
     int fd;
     char *exec;
     GError *err = NULL;
+    gpgme_protocol_t proto;
     gpgme_validity_t t = GPGME_VALIDITY_ULTIMATE;
     struct dlp_gpg *gpg = NULL;
     struct state *s = data;
@@ -701,16 +702,15 @@ static void test_gpg_change_owner_trust(gpointer data, gconstpointer user_data)
     /*
      * Mocks.
      */
-    if (getenv("LD_PRELOAD") != NULL) {
+    if (test_wrap_p()) {
         /*
          * Bad protocol.
          */
-        const char *env = "DLP_PRELOAD_GPGME_GET_PROTOCOL_RV";
-        g_assert_true(setenv(env, "123456", 1) == 0);
+        proto = GPGME_PROTOCOL_UNKNOWN;
+        test_wrap_push(gpgme_get_protocol, true, &proto);
         g_assert_false(
         dlp_gpg_change_owner_trust(s->gpg, s->ed25519.fpr, t, &err));
         g_assert_error(err, DLP_ERROR, GPG_ERR_UNSUPPORTED_PROTOCOL);
-        g_assert_true(unsetenv(env) == 0);
     }
 }
 
