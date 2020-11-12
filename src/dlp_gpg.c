@@ -456,9 +456,7 @@ static bool dlp_gpg_check_key(struct dlp_gpg *gpg, gpgme_key_t key,
 {
     gpgme_error_t err = GPG_ERR_NO_ERROR;
 
-    if (gpg == NULL) {
-        err = GPG_ERR_INV_OBJ;
-    } else if (key == NULL) {
+    if (gpg == NULL || key == NULL) {
         err = GPG_ERR_NO_KEY;
     } else if (key->revoked || key->expired || key->disabled || key->invalid) {
         err = GPG_ERR_BAD_KEY;
