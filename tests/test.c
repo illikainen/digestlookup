@@ -332,6 +332,17 @@ gpgme_error_t __wrap_gpgme_engine_check_version(gpgme_protocol_t proto)
 }
 
 /* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_new(gpgme_ctx_t *ctx)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return *(gpgme_error_t *)elt.value;
+    }
+    return __real_gpgme_new(ctx);
+}
+
+/* cppcheck-suppress unusedFunction */
 gpgme_protocol_t __wrap_gpgme_get_protocol(gpgme_ctx_t ctx)
 {
     struct test_wrap elt = { 0 };
@@ -362,6 +373,130 @@ gpgme_error_t __wrap_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd)
         return *(gpgme_error_t *)elt.value;
     }
     return __real_gpgme_data_new_from_fd(dh, fd);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_engine_info_t __wrap_gpgme_ctx_get_engine_info(gpgme_ctx_t ctx)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_gpgme_ctx_get_engine_info(ctx);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_op_verify(gpgme_ctx_t ctx, gpgme_data_t sig,
+                                     gpgme_data_t signed_text,
+                                     gpgme_data_t plaintext)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return *(gpgme_error_t *)elt.value;
+    }
+    return __real_gpgme_op_verify(ctx, sig, signed_text, plaintext);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_verify_result_t __wrap_gpgme_op_verify_result(gpgme_ctx_t ctx)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_gpgme_op_verify_result(ctx);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_get_key(gpgme_ctx_t ctx, const char *fpr,
+                                   gpgme_key_t *r_key, int secret)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        *r_key = elt.value;
+        return GPG_ERR_NO_ERROR;
+    }
+    return __real_gpgme_get_key(ctx, fpr, r_key, secret);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_op_keylist_start(gpgme_ctx_t ctx,
+                                            const char *pattern,
+                                            int secret_only)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return *(gpgme_error_t *)elt.value;
+    }
+    return __real_gpgme_op_keylist_start(ctx, pattern, secret_only);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_op_keylist_next(gpgme_ctx_t ctx, gpgme_key_t *r_key)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return *(gpgme_error_t *)elt.value;
+    }
+    return __real_gpgme_op_keylist_next(ctx, r_key);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_op_import(gpgme_ctx_t ctx, gpgme_data_t keydata)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return *(gpgme_error_t *)elt.value;
+    }
+    return __real_gpgme_op_import(ctx, keydata);
+}
+
+/* cppcheck-suppress unusedFunction */
+gpgme_import_result_t __wrap_gpgme_op_import_result(gpgme_ctx_t ctx)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_gpgme_op_import_result(ctx);
+}
+
+/* cppcheck-suppress unusedFunction */
+gboolean __wrap_g_subprocess_communicate_utf8(GSubprocess *proc, const char *in,
+                                              GCancellable *cancellable,
+                                              char **out, char **err,
+                                              GError **error)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        g_set_error(error, G_SPAWN_ERROR, 123, "%s", elt.value);
+        return false;
+    }
+    return __real_g_subprocess_communicate_utf8(proc, in, cancellable, out, err,
+                                                error);
+}
+
+/* cppcheck-suppress unusedFunction */
+gboolean __wrap_g_subprocess_wait_check(GSubprocess *proc,
+                                        GCancellable *cancellable,
+                                        GError **error)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        g_set_error(error, G_SPAWN_ERROR, 123, "%s", elt.value);
+        return false;
+    }
+    return __real_g_subprocess_wait_check(proc, cancellable, error);
 }
 
 #endif /* TEST_WRAP */

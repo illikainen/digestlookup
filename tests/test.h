@@ -16,6 +16,7 @@
 
 #include <cmocka.h>
 #include <curl/curl.h>
+#include <gio/gio.h>
 #include <glib.h>
 #include <gpgme.h>
 
@@ -129,6 +130,9 @@ const char *__real_gpgme_check_version_internal(const char *req_version,
 gpgme_error_t __wrap_gpgme_engine_check_version(gpgme_protocol_t proto);
 gpgme_error_t __real_gpgme_engine_check_version(gpgme_protocol_t proto);
 
+gpgme_error_t __wrap_gpgme_new(gpgme_ctx_t *ctx);
+gpgme_error_t __real_gpgme_new(gpgme_ctx_t *ctx);
+
 gpgme_protocol_t __wrap_gpgme_get_protocol(gpgme_ctx_t ctx);
 gpgme_protocol_t __real_gpgme_get_protocol(gpgme_ctx_t ctx);
 
@@ -137,5 +141,55 @@ int __real_gpgme_strerror_r(gpg_error_t err, char *buf, size_t buflen);
 
 gpgme_error_t __wrap_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd);
 gpgme_error_t __real_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd);
+
+gpgme_engine_info_t __wrap_gpgme_ctx_get_engine_info(gpgme_ctx_t ctx);
+gpgme_engine_info_t __real_gpgme_ctx_get_engine_info(gpgme_ctx_t ctx);
+
+gpgme_error_t __wrap_gpgme_op_verify(gpgme_ctx_t ctx, gpgme_data_t sig,
+                                     gpgme_data_t signed_text,
+                                     gpgme_data_t plaintext);
+gpgme_error_t __real_gpgme_op_verify(gpgme_ctx_t ctx, gpgme_data_t sig,
+                                     gpgme_data_t signed_text,
+                                     gpgme_data_t plaintext);
+
+gpgme_verify_result_t __wrap_gpgme_op_verify_result(gpgme_ctx_t ctx);
+gpgme_verify_result_t __real_gpgme_op_verify_result(gpgme_ctx_t ctx);
+
+gpgme_error_t __wrap_gpgme_get_key(gpgme_ctx_t ctx, const char *fpr,
+                                   gpgme_key_t *r_key, int secret);
+gpgme_error_t __real_gpgme_get_key(gpgme_ctx_t ctx, const char *fpr,
+                                   gpgme_key_t *r_key, int secret);
+
+gpgme_error_t __wrap_gpgme_op_keylist_start(gpgme_ctx_t ctx,
+                                            const char *pattern,
+                                            int secret_only);
+gpgme_error_t __real_gpgme_op_keylist_start(gpgme_ctx_t ctx,
+                                            const char *pattern,
+                                            int secret_only);
+
+gpgme_error_t __wrap_gpgme_op_keylist_next(gpgme_ctx_t ctx, gpgme_key_t *r_key);
+gpgme_error_t __real_gpgme_op_keylist_next(gpgme_ctx_t ctx, gpgme_key_t *r_key);
+
+gpgme_error_t __wrap_gpgme_op_import(gpgme_ctx_t ctx, gpgme_data_t keydata);
+gpgme_error_t __real_gpgme_op_import(gpgme_ctx_t ctx, gpgme_data_t keydata);
+
+gpgme_import_result_t __wrap_gpgme_op_import_result(gpgme_ctx_t ctx);
+gpgme_import_result_t __real_gpgme_op_import_result(gpgme_ctx_t ctx);
+
+gboolean __wrap_g_subprocess_communicate_utf8(GSubprocess *proc, const char *in,
+                                              GCancellable *cancellable,
+                                              char **out, char **err,
+                                              GError **error);
+gboolean __real_g_subprocess_communicate_utf8(GSubprocess *proc, const char *in,
+                                              GCancellable *cancellable,
+                                              char **out, char **err,
+                                              GError **error);
+
+gboolean __wrap_g_subprocess_wait_check(GSubprocess *proc,
+                                        GCancellable *cancellable,
+                                        GError **error);
+gboolean __real_g_subprocess_wait_check(GSubprocess *proc,
+                                        GCancellable *cancellable,
+                                        GError **error);
 
 #endif /* TEST_H */
