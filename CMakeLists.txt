@@ -107,7 +107,8 @@ if(CMAKE_C_COMPILER_ID STREQUAL Clang)
     # TODO: evaluate SafeStack <https://clang.llvm.org/docs/SafeStack.html>.
     add_flag(RELEASE "-fsanitize-minimal-runtime")
     if(HAVE_FSANITIZE_MINIMAL_RUNTIME)
-        foreach(sanitizer cfi integer nullability undefined)
+        foreach(sanitizer cfi undefined bounds integer nullability
+                float-divide-by-zero)
             add_flag(RELEASE "-fsanitize=${sanitizer}")
             add_flag(RELEASE "-fno-sanitize-recover=${sanitizer}")
         endforeach()
@@ -131,7 +132,8 @@ add_flag(DEBUG "-fcoverage-mapping")
 # infinite loop where the only output is AddressSanitizer:DEADLYSIGNAL.
 # Does not seem reproducible in gdb.
 if(CMAKE_C_COMPILER_ID STREQUAL Clang)
-    foreach(sanitizer address cfi integer nullability thread undefined)
+    foreach(sanitizer address cfi undefined bounds integer nullability
+            float-divide-by-zero thread)
         string(TOUPPER ${sanitizer} sanitizer_env)
         if(NOT DEFINED ENV{NO_${sanitizer_env}})
             add_flag(DEBUG "-fsanitize=${sanitizer}")
