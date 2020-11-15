@@ -146,7 +146,8 @@ bool dlp_mhd_session_add(struct dlp_mhd *mhd, const char *method,
     struct dlp_mhd_session *s;
 
     g_return_val_if_fail(mhd != NULL && method != NULL && version != NULL &&
-                         path != NULL && user_agent != NULL && content != NULL,
+                             path != NULL && user_agent != NULL &&
+                             content != NULL,
                          false);
 
     s = dlp_mem_alloc(sizeof(*s));
@@ -298,7 +299,7 @@ static int dlp_mhd_request_cb(void *cls, struct MHD_Connection *con,
     (void)con_cls;
 
     g_return_val_if_fail(cls != NULL && con != NULL && url != NULL &&
-                         method != NULL && version != NULL,
+                             method != NULL && version != NULL,
                          false);
 
     user_agent = MHD_lookup_connection_value(con, MHD_HEADER_KIND,

@@ -5,7 +5,6 @@ AllowShortFunctionsOnASingleLine: false
 BreakBeforeBraces: Linux
 BreakBeforeTernaryOperators: false
 ColumnLimit: 80
-ContinuationIndentWidth: 0
 Cpp11BracedListStyle: false
 IncludeBlocks: Regroup
 IncludeCategories:

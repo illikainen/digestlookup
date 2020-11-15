@@ -371,8 +371,8 @@ static bool dlp_curl_multi_check_result(CURLM *multi, GError **error)
                 }
                 g_set_error(error, DLP_ERROR, err, "%s",
                             *priv->errbuf != '\0' ?
-                            priv->errbuf :
-                            curl_easy_strerror(msg->data.result));
+                                priv->errbuf :
+                                curl_easy_strerror(msg->data.result));
                 return false;
             }
 
