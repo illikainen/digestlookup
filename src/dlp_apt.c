@@ -239,6 +239,7 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
     GHashTable *ht;
     GScanner *scanner;
     GTokenType tok;
+    GTokenType nexttok;
     GScannerConfig config = dlp_apt_config;
 
     g_return_val_if_fail(fd >= 0 && symbols != NULL && list != NULL, false);
@@ -275,8 +276,8 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
         /*
          * Separator between the symbol name and its value.
          */
-        tok = g_scanner_get_next_token(scanner);
-        if (tok != G_TOKEN_CHAR || scanner->value.v_char != ':') {
+        nexttok = g_scanner_get_next_token(scanner);
+        if (nexttok != G_TOKEN_CHAR || scanner->value.v_char != ':') {
             dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
             break;
         }
@@ -284,17 +285,17 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
         /*
          * Parse the symbol value.
          */
-        tok = sym->fn(scanner, ht, sym->name);
-        if (tok != G_TOKEN_NONE) {
-            dlp_apt_unexp_token(scanner, tok);
+        nexttok = sym->fn(scanner, ht, sym->name);
+        if (nexttok != G_TOKEN_NONE) {
+            dlp_apt_unexp_token(scanner, nexttok);
             break;
         }
 
         /*
          * Separator between elements.
          */
-        tok = g_scanner_peek_next_token(scanner);
-        if (tok == G_TOKEN_CHAR && scanner->next_value.v_char == '\n') {
+        nexttok = g_scanner_peek_next_token(scanner);
+        if (nexttok == G_TOKEN_CHAR && scanner->next_value.v_char == '\n') {
             g_scanner_get_next_token(scanner);
 
             if (g_scanner_peek_next_token(scanner) != G_TOKEN_EOF) {

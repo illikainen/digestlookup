@@ -265,6 +265,15 @@ static void test_apt_read_sources_package(gpointer data,
     g_clear_error(&err);
 
     /*
+     * EOF before separator.
+     */
+    prepare_fd(fd, "Package: foo\nBinary");
+    rv = dlp_apt_read_sources(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_clear_error(&err);
+
+    /*
      * Duplicate.
      */
     prepare_fd(fd, "Package: foo\nBinary: bar\nPackage: baz\n");
