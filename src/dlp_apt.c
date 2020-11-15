@@ -16,6 +16,9 @@
 
 #include "dlp_error.h"
 
+#define dlp_apt_unexp_token(scanner, exp_token)                                \
+    g_scanner_unexp_token(scanner, exp_token, NULL, NULL, NULL, G_STRLOC, true)
+
 struct dlp_apt_symbol {
     const char *name;
     GTokenType (*fn)(GScanner *scanner, GHashTable *ht, const char *key);
@@ -257,8 +260,7 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
          * Symbol to parse.
          */
         if (tok != G_TOKEN_SYMBOL) {
-            g_scanner_unexp_token(scanner, G_TOKEN_SYMBOL, NULL, NULL, NULL,
-                                  NULL, true);
+            dlp_apt_unexp_token(scanner, G_TOKEN_SYMBOL);
             break;
         }
 
@@ -275,8 +277,7 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
          */
         tok = g_scanner_get_next_token(scanner);
         if (tok != G_TOKEN_CHAR || scanner->value.v_char != ':') {
-            g_scanner_unexp_token(scanner, G_TOKEN_CHAR, NULL, NULL, NULL, NULL,
-                                  true);
+            dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
             break;
         }
 
@@ -285,7 +286,7 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
          */
         tok = sym->fn(scanner, ht, sym->name);
         if (tok != G_TOKEN_NONE) {
-            g_scanner_unexp_token(scanner, tok, NULL, NULL, NULL, NULL, true);
+            dlp_apt_unexp_token(scanner, tok);
             break;
         }
 
