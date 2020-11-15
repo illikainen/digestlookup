@@ -127,6 +127,59 @@ static void test_apt_list_free(gpointer data, gconstpointer user_data)
     g_assert_null(list);
 }
 
+static void test_apt_read_release_misc(gpointer data, gconstpointer user_data)
+{
+    int fd;
+    GHashTable *ht;
+    GError *err = NULL;
+    bool rv;
+
+    (void)data;
+    (void)user_data;
+
+    g_assert_true(dlp_fs_mkstemp(&fd, NULL));
+
+    /*
+     * Empty file.
+     */
+    rv = dlp_apt_read_release(fd, &ht, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_REQUIRED);
+    g_assert_false(rv);
+    g_assert_null(ht);
+    g_clear_error(&err);
+
+    /*
+     * Success.
+     */
+    prepare_fd(fd, "Suite: foo\nCodename: bar\n");
+    rv = dlp_apt_read_release(fd, &ht, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpstr(g_hash_table_lookup(ht, "Suite"), ==, "foo");
+    g_assert_cmpstr(g_hash_table_lookup(ht, "Codename"), ==, "bar");
+    dlp_apt_ht_free(&ht);
+
+    /*
+     * Invalid space separated word.
+     */
+    prepare_fd(fd, "Suite: foo bar\nCodename: baz\n");
+    rv = dlp_apt_read_release(fd, &ht, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_clear_error(&err);
+
+    /*
+     * Invalid EOF.
+     */
+    prepare_fd(fd, "Suite: foo\nCodename:");
+    rv = dlp_apt_read_release(fd, &ht, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_clear_error(&err);
+
+    g_assert_true(dlp_fs_close(&fd, NULL));
+}
+
 static void test_apt_read_release_full(gpointer data, gconstpointer user_data)
 {
     int fd;
@@ -162,6 +215,8 @@ static void test_apt_read_release_full(gpointer data, gconstpointer user_data)
     g_assert_true(rv);
     g_assert_true(dlp_fs_close(&fd, NULL));
     g_assert_nonnull(ht);
+    g_assert_cmpstr(g_hash_table_lookup(ht, "Suite"), ==, "stable");
+    g_assert_cmpstr(g_hash_table_lookup(ht, "Codename"), ==, "buster");
     dlp_apt_ht_free(&ht);
 }
 
@@ -534,6 +589,8 @@ int main(int argc, char **argv)
                       test_apt_ht_free, teardown);
     g_test_add_vtable("/apt/list/free", sizeof(struct state), NULL, setup,
                       test_apt_list_free, teardown);
+    g_test_add_vtable("/apt/read/release/misc", sizeof(struct state), NULL,
+                      setup, test_apt_read_release_misc, teardown);
     g_test_add_vtable("/apt/read/release/full", sizeof(struct state), NULL,
                       setup, test_apt_read_release_full, teardown);
     g_test_add_vtable("/apt/read/sources/package", sizeof(struct state), NULL,

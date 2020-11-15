@@ -49,6 +49,8 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
                          GError **error) DLP_NODISCARD;
 static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
                                   const char *key) DLP_NODISCARD;
+static bool dlp_apt_parse_word(GScanner *scanner, GHashTable *ht,
+                               const char *key) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
                                  const char *key) DLP_NODISCARD;
 static bool dlp_apt_check_required(struct dlp_apt_symbol *symbols, GList *list,
@@ -71,7 +73,7 @@ bool dlp_apt_read_release(int fd, GHashTable **release, GError **error)
         { "Acquire-By-Hash",            dlp_apt_parse_ignore,       0,  false },
         { "Architectures",              dlp_apt_parse_ignore,       0,  false },
         { "Changelogs",                 dlp_apt_parse_ignore,       0,  false },
-        { "Codename",                   dlp_apt_parse_ignore,       0,  false },
+        { "Codename",                   dlp_apt_parse_word,         0,  true  },
         { "Components",                 dlp_apt_parse_ignore,       0,  false },
         { "Date",                       dlp_apt_parse_ignore,       0,  false },
         { "Description",                dlp_apt_parse_ignore,       0,  false },
@@ -79,7 +81,7 @@ bool dlp_apt_read_release(int fd, GHashTable **release, GError **error)
         { "MD5Sum",                     dlp_apt_parse_ignore,       0,  false },
         { "Origin",                     dlp_apt_parse_ignore,       0,  false },
         { "SHA256",                     dlp_apt_parse_ignore,       0,  false },
-        { "Suite",                      dlp_apt_parse_ignore,       0,  false },
+        { "Suite",                      dlp_apt_parse_word,         0,  true  },
         { "Version",                    dlp_apt_parse_ignore,       0,  false },
         { NULL,                         NULL,                       0,  false },
         /* clang-format on */
@@ -347,6 +349,36 @@ static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
     *scanner->config = dlp_apt_config;
 
     if (tok != G_TOKEN_STRING || strlen(scanner->value.v_string) < 2) {
+        dlp_apt_unexp_token(scanner, G_TOKEN_STRING);
+        return false;
+    }
+
+    g_hash_table_insert(ht, g_strdup(key), g_strdup(scanner->value.v_string));
+
+    tok = g_scanner_get_next_token(scanner);
+    if (tok != G_TOKEN_CHAR || scanner->value.v_char != '\n') {
+        dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Parse a word.
+ *
+ * @param scanner   Scanner to use.
+ * @param ht        Hash table to store the field and value.
+ * @param key       Key for the field value in the hash table.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_parse_word(GScanner *scanner, GHashTable *ht,
+                               const char *key)
+{
+    GTokenType tok;
+
+    tok = g_scanner_get_next_token(scanner);
+    if (tok != G_TOKEN_STRING) {
         dlp_apt_unexp_token(scanner, G_TOKEN_STRING);
         return false;
     }
