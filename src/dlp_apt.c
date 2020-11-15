@@ -21,7 +21,7 @@
 
 struct dlp_apt_symbol {
     const char *name;
-    GTokenType (*fn)(GScanner *scanner, GHashTable *ht, const char *key);
+    bool (*fn)(GScanner *scanner, GHashTable *ht, const char *key);
     guint scope;
     bool required;
 };
@@ -47,10 +47,10 @@ static const GScannerConfig dlp_apt_config = {
 static void dlp_apt_ht_destroy(gpointer ptr);
 static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
                          GError **error) DLP_NODISCARD;
-static GTokenType dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
-                                        const char *key) DLP_NODISCARD;
-static GTokenType dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
-                                       const char *key) DLP_NODISCARD;
+static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
+                                  const char *key) DLP_NODISCARD;
+static bool dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
+                                 const char *key) DLP_NODISCARD;
 static bool dlp_apt_check_required(struct dlp_apt_symbol *symbols, GList *list,
                                    GError **error) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scanner, gchar *msg, gboolean error);
@@ -285,9 +285,7 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
         /*
          * Parse the symbol value.
          */
-        nexttok = sym->fn(scanner, ht, sym->name);
-        if (nexttok != G_TOKEN_NONE) {
-            dlp_apt_unexp_token(scanner, nexttok);
+        if (!sym->fn(scanner, ht, sym->name)) {
             break;
         }
 
@@ -333,10 +331,10 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
  * @param scanner   Scanner to use.
  * @param ht        Hash table to store the field and value.
  * @param key       Key for the field value in the hash table.
- * @return G_TOKEN_NONE on success and an expected token type on failure.
+ * @return True on success and false on failure.
  */
-static GTokenType dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
-                                        const char *key)
+static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
+                                  const char *key)
 {
     GTokenType tok;
 
@@ -349,17 +347,19 @@ static GTokenType dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
     *scanner->config = dlp_apt_config;
 
     if (tok != G_TOKEN_STRING || strlen(scanner->value.v_string) < 2) {
-        return G_TOKEN_STRING;
+        dlp_apt_unexp_token(scanner, G_TOKEN_STRING);
+        return false;
     }
 
     g_hash_table_insert(ht, g_strdup(key), g_strdup(scanner->value.v_string));
 
     tok = g_scanner_get_next_token(scanner);
     if (tok != G_TOKEN_CHAR || scanner->value.v_char != '\n') {
-        return G_TOKEN_CHAR;
+        dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
+        return false;
     }
 
-    return G_TOKEN_NONE;
+    return true;
 }
 
 /**
@@ -368,10 +368,10 @@ static GTokenType dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
  * @param scanner   Scanner to use.
  * @param ht        Not used.
  * @param key       Not used.
- * @return G_TOKEN_NONE on success and an expected token type on failure.
+ * @return True on success and false on failure.
  */
-static GTokenType dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
-                                       const char *key)
+static bool dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
+                                 const char *key)
 {
     GTokenType tok;
 
@@ -383,22 +383,23 @@ static GTokenType dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
     while ((tok = g_scanner_peek_next_token(scanner)) != G_TOKEN_EOF) {
         if (tok == G_TOKEN_ERROR) {
             g_scanner_get_next_token(scanner);
-            return G_TOKEN_IDENTIFIER;
+            dlp_apt_unexp_token(scanner, G_TOKEN_IDENTIFIER);
+            return false;
         }
 
         if (tok == G_TOKEN_SYMBOL && scanner->position == 0) {
-            return G_TOKEN_NONE;
+            return true;
         }
 
         if (tok == G_TOKEN_CHAR && scanner->next_value.v_char == '\n' &&
             scanner->position == 0) {
-            return G_TOKEN_NONE;
+            return true;
         }
 
         g_scanner_get_next_token(scanner);
     }
 
-    return G_TOKEN_NONE;
+    return true;
 }
 
 /**
