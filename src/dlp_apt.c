@@ -338,7 +338,7 @@ static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
 {
     GTokenType tok;
 
-    g_return_val_if_fail(scanner != NULL, false);
+    g_return_val_if_fail(scanner != NULL && ht != NULL && key != NULL, false);
 
     scanner->config->cset_identifier_first = G_CSET_a_2_z G_CSET_DIGITS;
     scanner->config->cset_identifier_nth = G_CSET_a_2_z G_CSET_DIGITS "+-.";
@@ -375,10 +375,7 @@ static bool dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
 {
     GTokenType tok;
 
-    (void)ht;
-    (void)key;
-
-    g_return_val_if_fail(scanner != NULL, false);
+    g_return_val_if_fail(scanner != NULL && ht != NULL && key != NULL, false);
 
     while ((tok = g_scanner_peek_next_token(scanner)) != G_TOKEN_EOF) {
         if (tok == G_TOKEN_ERROR) {
@@ -414,6 +411,8 @@ static bool dlp_apt_check_required(struct dlp_apt_symbol *symbols, GList *list,
                                    GError **error)
 {
     struct dlp_apt_symbol *sym;
+
+    g_return_val_if_fail(symbols != NULL && list != NULL, false);
 
     for (; list != NULL; list = list->next) {
         for (sym = symbols; sym->name != NULL; sym++) {
