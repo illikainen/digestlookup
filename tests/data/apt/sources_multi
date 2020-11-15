@@ -1,0 +1,276 @@
+Package: aptitude
+Binary: aptitude, aptitude-common, aptitude-doc-cs, aptitude-doc-en, aptitude-doc-es, aptitude-doc-fi, aptitude-doc-fr, aptitude-doc-it, aptitude-doc-ja, aptitude-doc-nl, aptitude-doc-ru
+Version: 0.8.11-7
+Maintainer: Aptitude Development Team <aptitude-devel@lists.alioth.debian.org>
+Uploaders: Manuel A. Fernandez Montecelo <mafm@debian.org>, Axel Beckert <abe@debian.org>
+Build-Depends: debhelper (>= 11~), autoconf-archive, dpkg-dev (>= 1.16.1), gettext, libapt-pkg-dev (>= 1.1), libboost-dev, libboost-iostreams-dev, libboost-system-dev, libboost-test-dev, libcppunit-dev, libcwidget-dev (>= 0.5.17-8), libgmock-dev (>= 1.8.0-9), libgtest-dev (>= 1.8.0-9), libncurses-dev (>= 6.1+20180210), libsigc++-2.0-dev, libsqlite3-dev, libxapian-dev, pkg-config
+Build-Depends-Indep: docbook-xml, docbook-xsl, elinks, librsvg2-bin, po4a, xsltproc
+Architecture: any all
+Standards-Version: 4.3.0
+Format: 3.0 (quilt)
+Files:
+ 2fb598437c270a3ca32ad372e4b4424d 3007 aptitude_0.8.11-7.dsc
+ 369e2bded48219bdf73462810c315009 4724388 aptitude_0.8.11.orig.tar.xz
+ 11fa60f97e5e88e76e875ef4b4fcbe95 57412 aptitude_0.8.11-7.debian.tar.xz
+Vcs-Browser: https://salsa.debian.org/apt-team/aptitude
+Vcs-Git: https://salsa.debian.org/apt-team/aptitude.git -b debian-sid
+Checksums-Sha256:
+ b0a39c712ff7284cb2119bee8179836a0c93bee5bf0f87f2fefe2f12ee95b987 3007 aptitude_0.8.11-7.dsc
+ a3aed83a14765336c8b4ca8f8b6fbcc5dadda0d98c5a1d3e643183f6ef8fc73e 4724388 aptitude_0.8.11.orig.tar.xz
+ efa17287e955836b3047bf64aee3ab0e726c42062eacfc6257d0968032eef64c 57412 aptitude_0.8.11-7.debian.tar.xz
+Homepage: https://wiki.debian.org/Aptitude
+Package-List:
+ aptitude deb admin optional arch=any
+ aptitude-common deb admin optional arch=all
+ aptitude-doc-cs deb doc optional arch=all
+ aptitude-doc-en deb doc optional arch=all
+ aptitude-doc-es deb doc optional arch=all
+ aptitude-doc-fi deb doc optional arch=all
+ aptitude-doc-fr deb doc optional arch=all
+ aptitude-doc-it deb doc optional arch=all
+ aptitude-doc-ja deb doc optional arch=all
+ aptitude-doc-nl deb doc optional arch=all
+ aptitude-doc-ru deb doc optional arch=all
+Directory: pool/main/a/aptitude
+Priority: source
+Section: admin
+
+Package: base-files
+Binary: base-files
+Version: 10.3+deb10u6
+Maintainer: Santiago Vila <sanvila@debian.org>
+Build-Depends: debhelper (>= 9)
+Architecture: any
+Standards-Version: 4.1.3
+Format: 3.0 (native)
+Files:
+ 8fe7f69f51b98035bb1d0ce40cff75a8 1103 base-files_10.3+deb10u6.dsc
+ 16fd84d24bbfb51f10d0d4623cdc3921 65400 base-files_10.3+deb10u6.tar.xz
+Checksums-Sha256:
+ 9b77bbf528cafb65eb6f510fbc3cf1367e55bf915af99740b3579a3e4ac7450f 1103 base-files_10.3+deb10u6.dsc
+ 450aed5977afeb8bf6f3f7ad9d67eb8bd08c27e79a434e1f0ed867f0cfcbc5da 65400 base-files_10.3+deb10u6.tar.xz
+Package-List:
+ base-files deb admin required arch=any essential=yes
+Directory: pool/main/b/base-files
+Priority: source
+Section: admin
+
+Package: binutils
+Binary: binutils-for-host, binutils-for-build, binutils, libbinutils, libbinutils-dbg, binutils-dev, binutils-multiarch, binutils-multiarch-dbg, binutils-multiarch-dev, binutils-hppa64-linux-gnu, binutils-hppa64-linux-gnu-dbg, binutils-doc, binutils-source, binutils-common, binutils-x86-64-linux-gnu, binutils-x86-64-linux-gnu-dbg, binutils-i686-linux-gnu, binutils-i686-linux-gnu-dbg, binutils-aarch64-linux-gnu, binutils-aarch64-linux-gnu-dbg, binutils-arm-linux-gnueabihf, binutils-arm-linux-gnueabihf-dbg, binutils-arm-linux-gnueabi, binutils-arm-linux-gnueabi-dbg, binutils-mips-linux-gnu, binutils-mips-linux-gnu-dbg, binutils-mipsel-linux-gnu, binutils-mipsel-linux-gnu-dbg, binutils-mips64el-linux-gnuabi64, binutils-mips64el-linux-gnuabi64-dbg, binutils-powerpc64le-linux-gnu, binutils-powerpc64le-linux-gnu-dbg, binutils-s390x-linux-gnu, binutils-s390x-linux-gnu-dbg, binutils-alpha-linux-gnu, binutils-alpha-linux-gnu-dbg, binutils-hppa-linux-gnu, binutils-hppa-linux-gnu-dbg,
+ binutils-ia64-linux-gnu, binutils-ia64-linux-gnu-dbg, binutils-m68k-linux-gnu, binutils-m68k-linux-gnu-dbg, binutils-mips64-linux-gnuabi64, binutils-mips64-linux-gnuabi64-dbg, binutils-powerpc-linux-gnu, binutils-powerpc-linux-gnu-dbg, binutils-powerpc-linux-gnuspe, binutils-powerpc-linux-gnuspe-dbg, binutils-powerpc64-linux-gnu, binutils-powerpc64-linux-gnu-dbg, binutils-riscv64-linux-gnu, binutils-riscv64-linux-gnu-dbg, binutils-sh4-linux-gnu, binutils-sh4-linux-gnu-dbg, binutils-sparc64-linux-gnu, binutils-sparc64-linux-gnu-dbg, binutils-x86-64-linux-gnux32, binutils-x86-64-linux-gnux32-dbg, binutils-i686-gnu, binutils-i686-gnu-dbg, binutils-x86-64-kfreebsd-gnu, binutils-x86-64-kfreebsd-gnu-dbg, binutils-i686-kfreebsd-gnu, binutils-i686-kfreebsd-gnu-dbg, binutils-mips64-linux-gnuabin32, binutils-mips64-linux-gnuabin32-dbg, binutils-mips64el-linux-gnuabin32, binutils-mips64el-linux-gnuabin32-dbg, binutils-mipsisa64r6-linux-gnuabin32,
+ binutils-mipsisa64r6-linux-gnuabin32-dbg, binutils-mipsisa64r6el-linux-gnuabin32, binutils-mipsisa64r6el-linux-gnuabin32-dbg, binutils-mipsisa32r6-linux-gnu, binutils-mipsisa32r6-linux-gnu-dbg, binutils-mipsisa32r6el-linux-gnu, binutils-mipsisa32r6el-linux-gnu-dbg, binutils-mipsisa64r6-linux-gnuabi64, binutils-mipsisa64r6-linux-gnuabi64-dbg, binutils-mipsisa64r6el-linux-gnuabi64,
+ binutils-mipsisa64r6el-linux-gnuabi64-dbg
+Version: 2.31.1-16
+Maintainer: Matthias Klose <doko@debian.org>
+Uploaders: James Troup <binutils@elmo.tasta.io>
+Build-Depends: autoconf (>= 2.64), dpkg-dev (>= 1.19.0.5), bison, flex, gettext, texinfo, dejagnu, quilt, chrpath, dwz, python3:any, file, xz-utils, lsb-release, zlib1g-dev, procps, g++-aarch64-linux-gnu [amd64 i386 x32] <!nocheck>, g++-arm-linux-gnueabi [amd64 arm64 i386 x32] <!nocheck>, g++-arm-linux-gnueabihf [amd64 arm64 i386 x32] <!nocheck>, g++-mips-linux-gnu [amd64 i386 x32] <!nocheck>, g++-mips64el-linux-gnuabi64 [amd64 i386 x32] <!nocheck>, g++-mipsel-linux-gnu [amd64 i386 x32] <!nocheck>, g++-powerpc64le-linux-gnu [amd64 i386 ppc64 x32] <!nocheck>, g++-s390x-linux-gnu [amd64 i386 x32] <!nocheck>, g++-alpha-linux-gnu [amd64 i386 x32] <!nocheck>, g++-hppa-linux-gnu [amd64 i386 x32] <!nocheck>, g++-m68k-linux-gnu [amd64 i386 x32] <!nocheck>, g++-powerpc-linux-gnu [amd64 i386 ppc64el x32] <!nocheck>, g++-powerpc64-linux-gnu [amd64 i386 x32] <!nocheck>, g++-riscv64-linux-gnu [amd64 i386 x32] <!nocheck>, g++-sh4-linux-gnu [amd64 i386 x32] <!nocheck>, g++-sparc64-linux-gnu [amd64 i386 x32] <!nocheck>, g++-i686-linux-gnu [amd64 arm64 ppc64el x32] <!nocheck>, g++-x86-64-linux-gnu [arm64 i386 ppc64el x32] <!nocheck>, g++-x86-64-linux-gnux32 [amd64 arm64 i386 ppc64el] <!nocheck>
+Build-Conflicts: libelf-dev
+Architecture: any all
+Standards-Version: 4.3.0
+Format: 3.0 (quilt)
+Files:
+ 5f074f055b95a97bc3f01773e050d4ff 11421 binutils_2.31.1-16.dsc
+ 5f07a94a7eee4c1e3fce85a9225f3bd3 21649228 binutils_2.31.1.orig.tar.xz
+ 0655a52c4a1a0d26e0ca85fffbbf9b6f 127464 binutils_2.31.1-16.debian.tar.xz
+Vcs-Browser: https://salsa.debian.org/toolchain-team/binutils/tree/binutils-2.31
+Vcs-Git: https://salsa.debian.org/toolchain-team/binutils.git
+Checksums-Sha256:
+ ec76c13684d922a3619d7ec982db191714927bde6de6a3ff89e95d1ce7a61f33 11421 binutils_2.31.1-16.dsc
+ e398a2d579faa0f2b5a988add5f7481af8e21a21f63b6ea5702e6f517960c5eb 21649228 binutils_2.31.1.orig.tar.xz
+ 15fc82a7c682da6bcbf56caf57da8f059655369cbfeb58b8312040e53e4fa11d 127464 binutils_2.31.1-16.debian.tar.xz
+Homepage: https://www.gnu.org/software/binutils/
+Package-List:
+ binutils deb devel optional arch=any
+ binutils-aarch64-linux-gnu deb devel optional arch=arm64,amd64,i386,x32,ppc64el
+ binutils-aarch64-linux-gnu-dbg deb debug optional arch=arm64,amd64,i386,x32,ppc64el
+ binutils-alpha-linux-gnu deb devel optional arch=alpha,amd64,i386,x32
+ binutils-alpha-linux-gnu-dbg deb debug optional arch=alpha,amd64,i386,x32
+ binutils-arm-linux-gnueabi deb devel optional arch=armel,amd64,i386,x32,arm64,ppc64el
+ binutils-arm-linux-gnueabi-dbg deb debug optional arch=armel,amd64,i386,x32,arm64,ppc64el
+ binutils-arm-linux-gnueabihf deb devel optional arch=armhf,amd64,i386,x32,arm64,ppc64el
+ binutils-arm-linux-gnueabihf-dbg deb debug optional arch=armhf,amd64,i386,x32,arm64,ppc64el
+ binutils-common deb devel optional arch=any
+ binutils-dev deb devel optional arch=any
+ binutils-doc deb doc optional arch=all
+ binutils-for-build deb devel optional arch=all
+ binutils-for-host deb devel optional arch=any
+ binutils-hppa-linux-gnu deb devel optional arch=hppa,amd64,i386,x32
+ binutils-hppa-linux-gnu-dbg deb debug optional arch=hppa,amd64,i386,x32
+ binutils-hppa64-linux-gnu deb devel optional arch=amd64,i386,x32,hppa
+ binutils-hppa64-linux-gnu-dbg deb debug optional arch=amd64,i386,x32,hppa
+ binutils-i686-gnu deb devel optional arch=hurd-i386,amd64,i386,x32
+ binutils-i686-gnu-dbg deb debug optional arch=hurd-i386,amd64,i386,x32
+ binutils-i686-kfreebsd-gnu deb devel optional arch=kfreebsd-i386,amd64,i386,x32
+ binutils-i686-kfreebsd-gnu-dbg deb debug optional arch=kfreebsd-i386,amd64,i386,x32
+ binutils-i686-linux-gnu deb devel optional arch=i386,amd64,arm64,ppc64el,x32
+ binutils-i686-linux-gnu-dbg deb debug optional arch=i386,amd64,arm64,ppc64el,x32
+ binutils-ia64-linux-gnu deb devel optional arch=ia64,amd64,i386,x32
+ binutils-ia64-linux-gnu-dbg deb debug optional arch=ia64,amd64,i386,x32
+ binutils-m68k-linux-gnu deb devel optional arch=m68k,amd64,i386,x32
+ binutils-m68k-linux-gnu-dbg deb debug optional arch=m68k,amd64,i386,x32
+ binutils-mips-linux-gnu deb devel optional arch=mips,amd64,i386,x32
+ binutils-mips-linux-gnu-dbg deb debug optional arch=mips,amd64,i386,x32
+ binutils-mips64-linux-gnuabi64 deb devel optional arch=mips64
+ binutils-mips64-linux-gnuabi64-dbg deb debug optional arch=mips64
+ binutils-mips64-linux-gnuabin32 deb devel optional arch=mipsn32
+ binutils-mips64-linux-gnuabin32-dbg deb debug optional arch=mipsn32
+ binutils-mips64el-linux-gnuabi64 deb devel optional arch=mips64el,amd64,i386,x32
+ binutils-mips64el-linux-gnuabi64-dbg deb debug optional arch=mips64el,amd64,i386,x32
+ binutils-mips64el-linux-gnuabin32 deb devel optional arch=mipsn32el
+ binutils-mips64el-linux-gnuabin32-dbg deb debug optional arch=mipsn32el
+ binutils-mipsel-linux-gnu deb devel optional arch=mipsel,amd64,i386,x32
+ binutils-mipsel-linux-gnu-dbg deb debug optional arch=mipsel,amd64,i386,x32
+ binutils-mipsisa32r6-linux-gnu deb devel optional arch=mipsr6
+ binutils-mipsisa32r6-linux-gnu-dbg deb debug optional arch=mipsr6
+ binutils-mipsisa32r6el-linux-gnu deb devel optional arch=mipsr6el
+ binutils-mipsisa32r6el-linux-gnu-dbg deb debug optional arch=mipsr6el
+ binutils-mipsisa64r6-linux-gnuabi64 deb devel optional arch=mips64r6
+ binutils-mipsisa64r6-linux-gnuabi64-dbg deb debug optional arch=mips64r6
+ binutils-mipsisa64r6-linux-gnuabin32 deb devel optional arch=mipsn32r6
+ binutils-mipsisa64r6-linux-gnuabin32-dbg deb debug optional arch=mipsn32r6
+ binutils-mipsisa64r6el-linux-gnuabi64 deb devel optional arch=mips64r6el
+ binutils-mipsisa64r6el-linux-gnuabi64-dbg deb debug optional arch=mips64r6el
+ binutils-mipsisa64r6el-linux-gnuabin32 deb devel optional arch=mipsn32r6el
+ binutils-mipsisa64r6el-linux-gnuabin32-dbg deb debug optional arch=mipsn32r6el
+ binutils-multiarch deb devel optional arch=any
+ binutils-multiarch-dbg deb debug optional arch=any
+ binutils-multiarch-dev deb devel optional arch=any
+ binutils-powerpc-linux-gnu deb devel optional arch=powerpc,amd64,i386,x32,ppc64el
+ binutils-powerpc-linux-gnu-dbg deb debug optional arch=powerpc,amd64,i386,x32,ppc64el
+ binutils-powerpc-linux-gnuspe deb devel optional arch=powerpcspe,amd64,i386,x32
+ binutils-powerpc-linux-gnuspe-dbg deb debug optional arch=powerpcspe,amd64,i386,x32
+ binutils-powerpc64-linux-gnu deb devel optional arch=ppc64,amd64,i386,x32,ppc64el
+ binutils-powerpc64-linux-gnu-dbg deb debug optional arch=ppc64,amd64,i386,x32,ppc64el
+ binutils-powerpc64le-linux-gnu deb devel optional arch=ppc64el,amd64,i386,x32,ppc64
+ binutils-powerpc64le-linux-gnu-dbg deb debug optional arch=ppc64el,amd64,i386,x32,ppc64
+ binutils-riscv64-linux-gnu deb devel optional arch=riscv64,amd64,i386,x32
+ binutils-riscv64-linux-gnu-dbg deb debug optional arch=riscv64,amd64,i386,x32
+ binutils-s390x-linux-gnu deb devel optional arch=s390x,amd64,i386,x32
+ binutils-s390x-linux-gnu-dbg deb debug optional arch=s390x,amd64,i386,x32
+ binutils-sh4-linux-gnu deb devel optional arch=sh4,amd64,i386,x32
+ binutils-sh4-linux-gnu-dbg deb debug optional arch=sh4,amd64,i386,x32
+ binutils-source deb devel optional arch=all
+ binutils-sparc64-linux-gnu deb devel optional arch=sparc64,amd64,i386,x32
+ binutils-sparc64-linux-gnu-dbg deb debug optional arch=sparc64,amd64,i386,x32
+ binutils-x86-64-kfreebsd-gnu deb devel optional arch=kfreebsd-amd64,amd64,i386,x32
+ binutils-x86-64-kfreebsd-gnu-dbg deb debug optional arch=kfreebsd-amd64,amd64,i386,x32
+ binutils-x86-64-linux-gnu deb devel optional arch=amd64,arm64,i386,ppc64el,x32
+ binutils-x86-64-linux-gnu-dbg deb debug optional arch=amd64,arm64,i386,ppc64el,x32
+ binutils-x86-64-linux-gnux32 deb devel optional arch=x32,amd64,arm64,i386,ppc64el
+ binutils-x86-64-linux-gnux32-dbg deb debug optional arch=x32,amd64,arm64,i386,ppc64el
+ libbinutils deb devel optional arch=any
+ libbinutils-dbg deb debug optional arch=any
+Testsuite: autopkgtest
+Testsuite-Triggers: autoconf, bison, build-essential, chrpath, dejagnu, dwz, fakeroot, file, flex, gettext, lsb-release, procps, python3, quilt, texinfo, xz-utils, zlib1g-dev
+Directory: pool/main/b/binutils
+Priority: source
+Section: devel
+
+Package: elfutils
+Binary: elfutils, libelf1, libelf-dev, libdw-dev, libdw1, libasm1, libasm-dev
+Version: 0.176-1.1
+Maintainer: Kurt Roeckx <kurt@roeckx.be>
+Build-Depends: debhelper (>= 9), autotools-dev, autoconf, automake, bzip2, zlib1g-dev, zlib1g-dev:native, libbz2-dev, liblzma-dev, m4, gettext, gawk, dpkg-dev (>= 1.16.1~), gcc-multilib [any-amd64 sparc64] <!nocheck>, libc6-dbg [powerpc powerpcspe ppc64 ppc64el armel armhf arm64 sparc64 riscv64], flex, bison
+Build-Conflicts: autoconf2.13, automake1.4
+Architecture: any
+Standards-Version: 4.1.0
+Format: 3.0 (quilt)
+Files:
+ e6becbb812acc1aaf28b4506aa1de3ca 2584 elfutils_0.176-1.1.dsc
+ 077e4f49320cad82bf17a997068b1db9 8646075 elfutils_0.176.orig.tar.bz2
+ 5296badecd902a6bf8fc7eb778cea932 455 elfutils_0.176.orig.tar.bz2.asc
+ bb7fe1dd5985d32a18b7838dcce7ec80 31644 elfutils_0.176-1.1.debian.tar.xz
+Checksums-Sha256:
+ 6d9fa4741e921f58a3e291def1f92a87bed888db15e73d6e29d46fc48b5f615a 2584 elfutils_0.176-1.1.dsc
+ eb5747c371b0af0f71e86215a5ebb88728533c3a104a43d4231963f308cd1023 8646075 elfutils_0.176.orig.tar.bz2
+ 51474b579b25fc799de0777e241c83605427d2903f8d28524ef6af42f75931fd 455 elfutils_0.176.orig.tar.bz2.asc
+ 06d7057e744d3a6138cf43d30237e2b327b6bfe3041a9a4b210414429c1267f1 31644 elfutils_0.176-1.1.debian.tar.xz
+Homepage: https://sourceware.org/elfutils/
+Package-List:
+ elfutils deb utils optional arch=any
+ libasm-dev deb libdevel optional arch=any
+ libasm1 deb libs optional arch=any
+ libdw-dev deb libdevel optional arch=any
+ libdw1 deb libs optional arch=any
+ libelf-dev deb libdevel optional arch=any
+ libelf1 deb libs optional arch=any
+Directory: pool/main/e/elfutils
+Priority: source
+Section: utils
+
+Package: libdisasm
+Binary: libdisasm-dev, libdisasm0, x86dis
+Version: 0.23-6
+Maintainer: Kees Cook <kees@debian.org>
+Build-Depends: debhelper (>= 9.0~), perl, dh-autoreconf
+Architecture: any
+Standards-Version: 3.9.5
+Format: 3.0 (quilt)
+Files:
+ 194a50492b6f05b82e0f703aeda4b7a6 2002 libdisasm_0.23-6.dsc
+ fc813fae8fceca92c2e40dac1da69041 454721 libdisasm_0.23.orig.tar.gz
+ c866055aeeed719e246cf70bdc2efcf5 5062 libdisasm_0.23-6.debian.tar.gz
+Vcs-Browser: http://bastard.cvs.sourceforge.net/bastard/libdisasm/
+Vcs-Cvs: :pserver:anonymous@bastard.cvs.sourceforge.net:/cvsroot/bastard
+Checksums-Sha256:
+ 576c7288395653bf3082e4a08db5215509eeaeae71b2de9099590a1224535981 2002 libdisasm_0.23-6.dsc
+ de3e578aa582af6e1d7729f39626892fb72dc6573658a221e0905f42a65433da 454721 libdisasm_0.23.orig.tar.gz
+ 787deebb9026378ed6906a42f18bb83b85e9e3e469178e68d4d83522d11c4d87 5062 libdisasm_0.23-6.debian.tar.gz
+Homepage: http://bastard.sourceforge.net/libdisasm.html
+Package-List:
+ libdisasm-dev deb libdevel optional
+ libdisasm0 deb libs optional
+ x86dis deb utils optional
+Directory: pool/main/libd/libdisasm
+Priority: source
+Section: libs
+
+Package: util-linux
+Binary: util-linux, util-linux-locales, mount, bsdutils, fdisk, fdisk-udeb, libblkid1, libblkid1-udeb, libblkid-dev, libfdisk1, libfdisk1-udeb, libfdisk-dev, libmount1, libmount1-udeb, libmount-dev, libsmartcols1, libsmartcols1-udeb, libsmartcols-dev, libuuid1, uuid-runtime, libuuid1-udeb, uuid-dev, util-linux-udeb, rfkill
+Version: 2.33.1-0.1
+Maintainer: LaMont Jones <lamont@debian.org>
+Uploaders: Adam Conrad <adconrad@0c3.net>
+Build-Depends: bc <!stage1 !nocheck>, debhelper (>= 11), dh-exec (>= 0.13), dpkg-dev (>= 1.17.14), gettext, libaudit-dev [linux-any] <!stage1>, libcap-ng-dev [linux-any] <!stage1>, libncurses5-dev, libncursesw5-dev, libpam0g-dev <!stage1>, libselinux1-dev (>= 2.6-3~) [linux-any], libsystemd-dev [linux-any] <!stage1>, libtool, libudev-dev [linux-any] <!stage1>, netbase <!stage1 !nocheck>, pkg-config, po-debconf, socat <!stage1 !nocheck>, systemd [linux-any] <!stage1>, bison, zlib1g-dev
+Architecture: any all
+Standards-Version: 4.1.2
+Format: 3.0 (quilt)
+Files:
+ 0ce8cf0d8704922f0cc0f7d765c2c823 3988 util-linux_2.33.1-0.1.dsc
+ 6fcfea2043b5ac188fd3eed56aeb5d90 4650936 util-linux_2.33.1.orig.tar.xz
+ ad5d638c9cfa042cd79de5b7313140d9 81780 util-linux_2.33.1-0.1.debian.tar.xz
+Vcs-Browser: https://salsa.debian.org/debian/util-linux
+Vcs-Git: https://salsa.debian.org/debian/util-linux.git
+Checksums-Sha256:
+ b5ee1ff0a8de37c3e4d7c0c29b7571b30ba4bea1d37e55e3d1dac3a3cbc50827 3988 util-linux_2.33.1-0.1.dsc
+ c14bd9f3b6e1792b90db87696e87ec643f9d63efa0a424f092a5a6b2f2dbef21 4650936 util-linux_2.33.1.orig.tar.xz
+ 07bfeb8298fab559dec2091463cab343785853bcae6c92c0806b7639e105913a 81780 util-linux_2.33.1-0.1.debian.tar.xz
+Package-List:
+ bsdutils deb utils required arch=any profile=!stage1 essential=yes
+ fdisk deb utils important arch=any profile=!stage1
+ fdisk-udeb udeb debian-installer optional arch=hurd-any,linux-any profile=!stage1
+ libblkid-dev deb libdevel optional arch=any
+ libblkid1 deb libs optional arch=any
+ libblkid1-udeb udeb debian-installer optional arch=any
+ libfdisk-dev deb libdevel optional arch=any
+ libfdisk1 deb libs optional arch=any
+ libfdisk1-udeb udeb debian-installer optional arch=any
+ libmount-dev deb libdevel optional arch=linux-any
+ libmount1 deb libs optional arch=any
+ libmount1-udeb udeb debian-installer optional arch=linux-any
+ libsmartcols-dev deb libdevel optional arch=any
+ libsmartcols1 deb libs optional arch=any
+ libsmartcols1-udeb udeb debian-installer optional arch=any
+ libuuid1 deb libs optional arch=any
+ libuuid1-udeb udeb debian-installer optional arch=any
+ mount deb admin required arch=linux-any profile=!stage1
+ rfkill deb utils optional arch=linux-any profile=!stage1
+ util-linux deb utils required arch=any profile=!stage1 essential=yes
+ util-linux-locales deb localization optional arch=all profile=!stage1
+ util-linux-udeb udeb debian-installer optional arch=any profile=!stage1
+ uuid-dev deb libdevel optional arch=any
+ uuid-runtime deb utils optional arch=any profile=!stage1
+Testsuite: autopkgtest
+Testsuite-Triggers: bash, bc, bsdmainutils, dpkg, grep
+Directory: pool/main/u/util-linux
+Priority: source
+Section: utils
