@@ -499,4 +499,17 @@ gboolean __wrap_g_subprocess_wait_check(GSubprocess *proc,
     return __real_g_subprocess_wait_check(proc, cancellable, error);
 }
 
+/* cppcheck-suppress unusedFunction */
+GTokenType __wrap_g_scanner_peek_next_token(GScanner *scanner)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        scanner->next_token = *(GTokenType *)elt.value;
+        scanner->next_value.v_error = G_ERR_UNKNOWN;
+        return scanner->next_token;
+    }
+    return __real_g_scanner_peek_next_token(scanner);
+}
+
 #endif /* TEST_WRAP */

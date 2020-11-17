@@ -15,15 +15,23 @@
 #include <glib/gi18n.h>
 
 #include "dlp_error.h"
+#include "dlp_mem.h"
 
-#define dlp_apt_unexp_token(scanner, exp_token)                                \
-    g_scanner_unexp_token(scanner, exp_token, NULL, NULL, NULL, G_STRLOC, true)
+#define dlp_apt_unexp_token(scan, exp_token)                                   \
+    g_scanner_unexp_token(scan, exp_token, NULL, NULL, NULL, G_STRLOC, true)
+
+struct dlp_apt_data {
+    void *dst;
+    GError **error;
+};
 
 struct dlp_apt_symbol {
     const char *name;
-    bool (*fn)(GScanner *scanner, GHashTable *ht, const char *key);
+    bool (*fn)(GScanner *scanner, void *dst);
+    glong offset;
     guint scope;
     bool required;
+    bool seen;
 };
 
 static const GScannerConfig dlp_apt_config = {
@@ -44,169 +52,241 @@ static const GScannerConfig dlp_apt_config = {
     .scan_symbols = 1,
 };
 
-static void dlp_apt_ht_destroy(gpointer ptr);
-static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
-                         GError **error) DLP_NODISCARD;
-static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
-                                  const char *key) DLP_NODISCARD;
-static bool dlp_apt_parse_word(GScanner *scanner, GHashTable *ht,
-                               const char *key) DLP_NODISCARD;
-static bool dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
-                                 const char *key) DLP_NODISCARD;
-static bool dlp_apt_check_required(struct dlp_apt_symbol *symbols, GList *list,
-                                   GError **error) DLP_NODISCARD;
-static void dlp_apt_error(GScanner *scanner, gchar *msg, gboolean error);
+static void dlp_apt_sources_free_1(gpointer ptr);
+static void dlp_apt_symbols_add(GScanner *scan, struct dlp_apt_symbol *syms);
+static void dlp_apt_symbols_remove(GScanner *scan, struct dlp_apt_symbol *syms);
+static bool dlp_apt_symbols_reset(struct dlp_apt_symbol *syms,
+                                  GError **error) DLP_NODISCARD;
+static bool dlp_apt_symbols_read(GScanner *scan, GError **error) DLP_NODISCARD;
+static bool dlp_apt_parse_package(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
+static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
 
 /**
  * Read an APT release file.
  *
  * @param fd      File descriptor to read.
- * @param release Hash table for the release fields.  It is allocated by dlp_apt
- *                and must be freed with dlp_apt_ht_free() after use.
+ * @param release Structure with the release fields.  It is allocated by dlp_apt
+ *                and must be freed with dlp_apt_release_free() after use.
  * @param error   Optional error information.
  * @return True on success and false on failure.
  */
-bool dlp_apt_read_release(int fd, GHashTable **release, GError **error)
+bool dlp_apt_release_read(int fd, struct dlp_apt_release **release,
+                          GError **error)
 {
     struct dlp_apt_symbol symbols[] = {
         /* clang-format off */
-        { "Acquire-By-Hash",            dlp_apt_parse_ignore,       0,  false },
-        { "Architectures",              dlp_apt_parse_ignore,       0,  false },
-        { "Changelogs",                 dlp_apt_parse_ignore,       0,  false },
-        { "Codename",                   dlp_apt_parse_word,         0,  true  },
-        { "Components",                 dlp_apt_parse_ignore,       0,  false },
-        { "Date",                       dlp_apt_parse_ignore,       0,  false },
-        { "Description",                dlp_apt_parse_ignore,       0,  false },
-        { "Label",                      dlp_apt_parse_ignore,       0,  false },
-        { "MD5Sum",                     dlp_apt_parse_ignore,       0,  false },
-        { "Origin",                     dlp_apt_parse_ignore,       0,  false },
-        { "SHA256",                     dlp_apt_parse_ignore,       0,  false },
-        { "Suite",                      dlp_apt_parse_word,         0,  true  },
-        { "Version",                    dlp_apt_parse_ignore,       0,  false },
-        { NULL,                         NULL,                       0,  false },
+        { .name = "Acquire-By-Hash",          .fn = dlp_apt_parse_ignore },
+        { .name = "Architectures",            .fn = dlp_apt_parse_ignore },
+        { .name = "Changelogs",               .fn = dlp_apt_parse_ignore },
+        { .name = "Codename",                 .fn = dlp_apt_parse_word,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_release, codename),
+          .required = true },
+        { .name = "Components",               .fn = dlp_apt_parse_ignore },
+        { .name = "Date",                     .fn = dlp_apt_parse_ignore },
+        { .name = "Description",              .fn = dlp_apt_parse_ignore },
+        { .name = "Label",                    .fn = dlp_apt_parse_ignore },
+        { .name = "MD5Sum",                   .fn = dlp_apt_parse_ignore },
+        { .name = "Origin",                   .fn = dlp_apt_parse_ignore },
+        { .name = "SHA256",                   .fn = dlp_apt_parse_ignore },
+        { .name = "Suite",                    .fn = dlp_apt_parse_word,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_release, suite),
+          .required = true },
+        { .name = "Version",                  .fn = dlp_apt_parse_ignore },
+        { .name = NULL                                                   },
         /* clang-format on */
     };
-    GList *list;
+    struct dlp_apt_data data;
+    GTokenType tok;
+    GScanner *scan;
 
     g_return_val_if_fail(fd >= 0 && release != NULL, false);
-    *release = NULL;
 
-    if (!dlp_apt_read(fd, symbols, &list, error)) {
+    data.error = error;
+    data.dst = dlp_mem_alloc(sizeof(struct dlp_apt_release));
+
+    scan = g_scanner_new(&dlp_apt_config);
+    scan->user_data = &data;
+    scan->msg_handler = dlp_apt_error;
+    g_scanner_input_file(scan, fd);
+
+    dlp_apt_symbols_add(scan, symbols);
+
+    while ((tok = g_scanner_get_next_token(scan)) != G_TOKEN_EOF) {
+        if (!dlp_apt_symbols_read(scan, error)) {
+            break;
+        }
+    }
+
+    dlp_apt_symbols_remove(scan, symbols);
+    g_scanner_destroy(scan);
+
+    *release = data.dst;
+    if (tok != G_TOKEN_EOF || !dlp_apt_symbols_reset(symbols, error)) {
+        dlp_apt_release_free(release);
         return false;
     }
 
-    if (g_list_length(list) != 1) {
-        g_set_error(error, DLP_ERROR, DLP_APT_ERROR_DUPLICATE, "%s",
-                    _("duplicate release entries"));
-        dlp_apt_list_free(&list);
-        return false;
-    }
-
-    *release = list->data;
-    g_list_free(list);
     return true;
+}
+
+/**
+ * Free a dlp_apt_release structure.
+ *
+ * @param release Structure to free.
+ */
+void dlp_apt_release_free(struct dlp_apt_release **release)
+{
+    if (release != NULL && *release != NULL) {
+        dlp_mem_free(&(*release)->codename);
+        dlp_mem_free(&(*release)->suite);
+        dlp_mem_free(release);
+    }
 }
 
 /**
  * Read an APT source file.
  *
- * Source files does not seem to have any field that is required to have a
- * unique value.  Even the value of the "Package" field may be used by multiple
- * packages (the same package may have multiple versions available; see e.g. acl
- * or grub2 in Debian Buster).
+ * Note that source files does not seem to have any field that is required to
+ * have a unique value.  Even the value of the "Package" field may be used by
+ * multiple packages (the same package may have multiple versions available;
+ * see e.g. acl or grub2 in Debian Buster).
  *
- * For ease of implementation, every package in the source file is allocated a
- * new hash table, and they are returned in a linked list.
- *
- * @param fd    File descriptor to read.
- * @param pkgs  A linked list that contains one hash table per package.  It must
- *              be freed with dlp_apt_list_free() after use.
- * @param error Optional error information.
+ * @param fd      File descriptor to read.
+ * @param sources A linked list with one dlp_apt_source structure per element in
+ *                the source file.  It must be freed with dlp_apt_sources_free()
+ *                after use.
+ * @param error   Optional error information.
  * @return True on success and false on failure.
  */
-bool dlp_apt_read_sources(int fd, GList **pkgs, GError **error)
+bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
 {
     struct dlp_apt_symbol symbols[] = {
         /* clang-format off */
-        { "Architecture",               dlp_apt_parse_ignore,       0,  false },
-        { "Autobuild",                  dlp_apt_parse_ignore,       0,  false },
-        { "Binary",                     dlp_apt_parse_ignore,       0,  false },
-        { "Build-Conflicts",            dlp_apt_parse_ignore,       0,  false },
-        { "Build-Conflicts-Indep",      dlp_apt_parse_ignore,       0,  false },
-        { "Build-Depends",              dlp_apt_parse_ignore,       0,  false },
-        { "Build-Depends-Arch",         dlp_apt_parse_ignore,       0,  false },
-        { "Build-Depends-Indep",        dlp_apt_parse_ignore,       0,  false },
-        { "Build-Indep-Architecture",   dlp_apt_parse_ignore,       0,  false },
-        { "Checksums-Sha256",           dlp_apt_parse_ignore,       0,  false },
-        { "Comment",                    dlp_apt_parse_ignore,       0,  false },
-        { "Dgit",                       dlp_apt_parse_ignore,       0,  false },
-        { "Directory",                  dlp_apt_parse_ignore,       0,  false },
-        { "Dm-Upload-Allowed",          dlp_apt_parse_ignore,       0,  false },
-        { "Extra-Source-Only",          dlp_apt_parse_ignore,       0,  false },
-        { "Files",                      dlp_apt_parse_ignore,       0,  false },
-        { "Format",                     dlp_apt_parse_ignore,       0,  false },
-        { "Go-Import-Path",             dlp_apt_parse_ignore,       0,  false },
-        { "Homepage",                   dlp_apt_parse_ignore,       0,  false },
-        { "Maintainer",                 dlp_apt_parse_ignore,       0,  false },
-        { "Original-Maintainer",        dlp_apt_parse_ignore,       0,  false },
-        { "Package",                    dlp_apt_parse_package,      0,  true  },
-        { "Package-List",               dlp_apt_parse_ignore,       0,  false },
-        { "Priority",                   dlp_apt_parse_ignore,       0,  false },
-        { "Python-Version",             dlp_apt_parse_ignore,       0,  false },
-        { "Python3-Version",            dlp_apt_parse_ignore,       0,  false },
-        { "Ruby-Versions",              dlp_apt_parse_ignore,       0,  false },
-        { "Section",                    dlp_apt_parse_ignore,       0,  false },
-        { "Standards-Version",          dlp_apt_parse_ignore,       0,  false },
-        { "Testsuite",                  dlp_apt_parse_ignore,       0,  false },
-        { "Testsuite-Triggers",         dlp_apt_parse_ignore,       0,  false },
-        { "Uploaders",                  dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Arch",                   dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Browser",                dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Bzr",                    dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Cvs",                    dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Darcs",                  dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Git",                    dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Hg",                     dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Mtn",                    dlp_apt_parse_ignore,       0,  false },
-        { "Vcs-Svn",                    dlp_apt_parse_ignore,       0,  false },
-        { "Version",                    dlp_apt_parse_ignore,       0,  false },
-        { NULL,                         NULL,                       0,  false },
+        { .name = "Architecture",             .fn = dlp_apt_parse_ignore },
+        { .name = "Autobuild",                .fn = dlp_apt_parse_ignore },
+        { .name = "Binary",                   .fn = dlp_apt_parse_ignore },
+        { .name = "Build-Conflicts",          .fn = dlp_apt_parse_ignore },
+        { .name = "Build-Conflicts-Indep",    .fn = dlp_apt_parse_ignore },
+        { .name = "Build-Depends",            .fn = dlp_apt_parse_ignore },
+        { .name = "Build-Depends-Arch",       .fn = dlp_apt_parse_ignore },
+        { .name = "Build-Depends-Indep",      .fn = dlp_apt_parse_ignore },
+        { .name = "Build-Indep-Architecture", .fn = dlp_apt_parse_ignore },
+        { .name = "Checksums-Sha256",         .fn = dlp_apt_parse_ignore },
+        { .name = "Comment",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Dgit",                     .fn = dlp_apt_parse_ignore },
+        { .name = "Directory",                .fn = dlp_apt_parse_ignore },
+        { .name = "Dm-Upload-Allowed",        .fn = dlp_apt_parse_ignore },
+        { .name = "Extra-Source-Only",        .fn = dlp_apt_parse_ignore },
+        { .name = "Files",                    .fn = dlp_apt_parse_ignore },
+        { .name = "Format",                   .fn = dlp_apt_parse_ignore },
+        { .name = "Go-Import-Path",           .fn = dlp_apt_parse_ignore },
+        { .name = "Homepage",                 .fn = dlp_apt_parse_ignore },
+        { .name = "Maintainer",               .fn = dlp_apt_parse_ignore },
+        { .name = "Original-Maintainer",      .fn = dlp_apt_parse_ignore },
+        { .name = "Package",                  .fn = dlp_apt_parse_package,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_source, package),
+          .required = true },
+        { .name = "Package-List",             .fn = dlp_apt_parse_ignore },
+        { .name = "Priority",                 .fn = dlp_apt_parse_ignore },
+        { .name = "Python-Version",           .fn = dlp_apt_parse_ignore },
+        { .name = "Python3-Version",          .fn = dlp_apt_parse_ignore },
+        { .name = "Ruby-Versions",            .fn = dlp_apt_parse_ignore },
+        { .name = "Section",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Standards-Version",        .fn = dlp_apt_parse_ignore },
+        { .name = "Testsuite",                .fn = dlp_apt_parse_ignore },
+        { .name = "Testsuite-Triggers",       .fn = dlp_apt_parse_ignore },
+        { .name = "Uploaders",                .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Arch",                 .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Browser",              .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Bzr",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Cvs",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Darcs",                .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Git",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Hg",                   .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Mtn",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Vcs-Svn",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Version",                  .fn = dlp_apt_parse_ignore },
+        { .name = NULL                                                   },
         /* clang-format on */
     };
+    struct dlp_apt_data data;
+    GTokenType tok;
+    GTokenType nexttok;
+    GScanner *scan;
 
-    g_return_val_if_fail(fd >= 0 && pkgs != NULL, false);
+    g_return_val_if_fail(fd >= 0 && sources != NULL, false);
+    *sources = NULL;
 
-    return dlp_apt_read(fd, symbols, pkgs, error);
+    data.error = error;
+    data.dst = dlp_mem_alloc(sizeof(struct dlp_apt_source));
+
+    scan = g_scanner_new(&dlp_apt_config);
+    scan->user_data = &data;
+    scan->msg_handler = dlp_apt_error;
+    g_scanner_input_file(scan, fd);
+
+    dlp_apt_symbols_add(scan, symbols);
+
+    while ((tok = g_scanner_get_next_token(scan)) != G_TOKEN_EOF) {
+        if (!dlp_apt_symbols_read(scan, error)) {
+            break;
+        }
+
+        nexttok = g_scanner_peek_next_token(scan);
+        if (nexttok == G_TOKEN_CHAR && scan->next_value.v_char == '\n') {
+            g_scanner_get_next_token(scan);
+
+            *sources = g_list_prepend(*sources, data.dst);
+            data.dst = dlp_mem_alloc(sizeof(struct dlp_apt_source));
+
+            if (!dlp_apt_symbols_reset(symbols, error)) {
+                break;
+            }
+        } else if (nexttok == G_TOKEN_EOF) {
+            *sources = g_list_prepend(*sources, data.dst);
+            data.dst = NULL;
+
+            if (!dlp_apt_symbols_reset(symbols, error)) {
+                break;
+            }
+        }
+    }
+
+    dlp_apt_sources_free_1(data.dst);
+    dlp_apt_symbols_remove(scan, symbols);
+    g_scanner_destroy(scan);
+
+    if (tok != G_TOKEN_EOF) {
+        dlp_apt_sources_free(sources);
+        return false;
+    }
+
+    if (g_list_length(*sources) == 0) {
+        g_set_error(error, DLP_ERROR, DLP_APT_ERROR_REQUIRED, _("no elements"));
+        dlp_apt_sources_free(sources);
+        return false;
+    }
+
+    return true;
 }
 
 /**
- * Free a list that was allocated through dlp_apt.
+ * Free a list of dlp_apt_source structures.
  *
- * @param list List to free.
+ * @param sources List to free.
  */
-void dlp_apt_list_free(GList **list)
+void dlp_apt_sources_free(GList **sources)
 {
-    if (list != NULL && *list != NULL) {
-        g_list_free_full(*list, dlp_apt_ht_destroy);
-        *list = NULL;
+    if (sources != NULL && *sources != NULL) {
+        g_list_free_full(*sources, dlp_apt_sources_free_1);
+        *sources = NULL;
     }
 }
 
 /**
- * Free a hash table that was allocated through dlp_apt.
- *
- * @param ht Hash table to free.
- */
-void dlp_apt_ht_free(GHashTable **ht)
-{
-    if (ht != NULL && *ht != NULL) {
-        dlp_apt_ht_destroy(*ht);
-        *ht = NULL;
-    }
-}
-
-/**
- * Destroy a hash table.
+ * Free a dlp_apt_source structure.
  *
  * This function is declared with a gpointer to avoid undefined behavior if
  * it's used as a GDestroyNotify function pointer.
@@ -215,113 +295,117 @@ void dlp_apt_ht_free(GHashTable **ht)
  * - ISO/IEC 9899:201x 6.2.5 §28
  * - ISO/IEC 9899:201x 6.3.2.3 §8
  *
- * @param ptr Hash table to destroy.
+ * @param ptr Structure to free.
  */
-static void dlp_apt_ht_destroy(gpointer ptr)
+static void dlp_apt_sources_free_1(gpointer ptr)
 {
-    if (ptr != NULL) {
-        g_hash_table_destroy(ptr);
+    struct dlp_apt_source *s = ptr;
+
+    if (s != NULL) {
+        dlp_mem_free(&s->package);
+        dlp_mem_free(&s);
     }
 }
 
 /**
- * Read an APT metadata file.
+ * Add symbols to the scanner.
  *
- * @param fd        File descriptor to read.
- * @param symbols   Symbol names, scopes and handlers.
- * @param list      A linked list that contains one hash table per element.
- *                  It must be freed with dlp_apt_list_free() after use.
+ * @param scan  Scanner to add the symbols to.
+ * @param syms  Symbols to add.
+ */
+static void dlp_apt_symbols_add(GScanner *scan, struct dlp_apt_symbol *syms)
+{
+    g_return_if_fail(scan != NULL && syms != NULL);
+
+    for (; syms->name != NULL; syms++) {
+        g_scanner_scope_add_symbol(scan, syms->scope, syms->name, syms);
+    }
+}
+
+/**
+ * Remove symbols from the scanner.
+ *
+ * @param scan  Scanner to remove the symbols from.
+ * @param syms  Symbols to remove.
+ */
+static void dlp_apt_symbols_remove(GScanner *scan, struct dlp_apt_symbol *syms)
+{
+    g_return_if_fail(scan != NULL && syms != NULL);
+
+    for (; syms->name != NULL; syms++) {
+        g_scanner_scope_remove_symbol(scan, syms->scope, syms->name);
+    }
+}
+
+/**
+ * Check and reset symbols.
+ *
+ * @param syms  Symbols to check and reset.
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
-static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
-                         GError **error)
+static bool dlp_apt_symbols_reset(struct dlp_apt_symbol *syms, GError **error)
 {
-    struct dlp_apt_symbol *sym;
-    GHashTable *ht;
-    GScanner *scanner;
-    GTokenType tok;
-    GTokenType nexttok;
-    GScannerConfig config = dlp_apt_config;
+    g_return_val_if_fail(syms != NULL, false);
 
-    g_return_val_if_fail(fd >= 0 && symbols != NULL && list != NULL, false);
-
-    scanner = g_scanner_new(&config);
-    scanner->user_data = error;
-    scanner->msg_handler = dlp_apt_error;
-    g_scanner_input_file(scanner, fd);
-
-    for (sym = symbols; sym->name != NULL; sym++) {
-        g_scanner_scope_add_symbol(scanner, sym->scope, sym->name, sym);
-    }
-
-    ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
-    *list = g_list_prepend(NULL, ht);
-
-    while ((tok = g_scanner_get_next_token(scanner)) != G_TOKEN_EOF) {
-        /*
-         * Symbol to parse.
-         */
-        if (tok != G_TOKEN_SYMBOL) {
-            dlp_apt_unexp_token(scanner, G_TOKEN_SYMBOL);
-            break;
+    for (; syms->name != NULL; syms++) {
+        if (syms->required && !syms->seen) {
+            g_set_error(error, DLP_ERROR, DLP_APT_ERROR_REQUIRED, "%s %s",
+                        _("missing required field"), syms->name);
+            return false;
         }
-
-        sym = scanner->value.v_symbol;
-        if (g_hash_table_lookup_extended(ht, sym->name, NULL, NULL)) {
-            g_set_error(error, DLP_ERROR, DLP_APT_ERROR_DUPLICATE,
-                        "%u:%u: %s: %s", scanner->line, scanner->position,
-                        _("duplicate symbol"), sym->name);
-            break;
-        }
-
-        /*
-         * Separator between the symbol name and its value.
-         */
-        nexttok = g_scanner_get_next_token(scanner);
-        if (nexttok != G_TOKEN_CHAR || scanner->value.v_char != ':') {
-            dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
-            break;
-        }
-
-        /*
-         * Parse the symbol value.
-         */
-        if (!sym->fn(scanner, ht, sym->name)) {
-            break;
-        }
-
-        /*
-         * Separator between elements.
-         */
-        nexttok = g_scanner_peek_next_token(scanner);
-        if (nexttok == G_TOKEN_CHAR && scanner->next_value.v_char == '\n') {
-            g_scanner_get_next_token(scanner);
-
-            if (g_scanner_peek_next_token(scanner) != G_TOKEN_EOF) {
-                ht = g_hash_table_new_full(g_str_hash, g_str_equal, g_free,
-                                           g_free);
-                *list = g_list_prepend(*list, ht);
-            }
-        }
+        syms->seen = false;
     }
-
-    for (sym = symbols; sym->name != NULL; sym++) {
-        g_scanner_scope_remove_symbol(scanner, sym->scope, sym->name);
-    }
-    g_scanner_destroy(scanner);
-
-    if (tok != G_TOKEN_EOF) {
-        dlp_apt_list_free(list);
-        return false;
-    }
-
-    if (!dlp_apt_check_required(symbols, *list, error)) {
-        dlp_apt_list_free(list);
-        return false;
-    }
-
     return true;
+}
+
+/**
+ * Read a symbol and invoke its handler.
+ *
+ * @param scan  Scanner to use.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_symbols_read(GScanner *scan, GError **error)
+{
+    GTokenType tok;
+    struct dlp_apt_data *data;
+    struct dlp_apt_symbol *sym;
+
+    g_return_val_if_fail(scan != NULL && scan->user_data != NULL, false);
+
+    /*
+     * Symbol to parse.
+     */
+    tok = scan->token;
+    if (tok != G_TOKEN_SYMBOL) {
+        dlp_apt_unexp_token(scan, G_TOKEN_SYMBOL);
+        return false;
+    }
+
+    sym = scan->value.v_symbol;
+    if (sym->seen) {
+        g_set_error(error, DLP_ERROR, DLP_APT_ERROR_DUPLICATE, "%u:%u: %s: %s",
+                    scan->line, scan->position, _("duplicate symbol"),
+                    sym->name);
+        return false;
+    }
+    sym->seen = true;
+
+    /*
+     * Separator between the symbol name and its value.
+     */
+    tok = g_scanner_get_next_token(scan);
+    if (tok != G_TOKEN_CHAR || scan->value.v_char != ':') {
+        dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+        return false;
+    }
+
+    /*
+     * Parse the symbol value.
+     */
+    data = scan->user_data;
+    return sym->fn(scan, G_STRUCT_MEMBER_P(data->dst, sym->offset));
 }
 
 /**
@@ -330,34 +414,33 @@ static bool dlp_apt_read(int fd, struct dlp_apt_symbol *symbols, GList **list,
  * See:
  * - Debian Policy Manual, 5.6.1.
  *
- * @param scanner   Scanner to use.
- * @param ht        Hash table to store the field and value.
- * @param key       Key for the field value in the hash table.
+ * @param scan  Scanner to use.
+ * @param dst   Destination for the field value.
  * @return True on success and false on failure.
  */
-static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
-                                  const char *key)
+static bool dlp_apt_parse_package(GScanner *scan, void *dst)
 {
     GTokenType tok;
+    char **pkg = dst;
 
-    g_return_val_if_fail(scanner != NULL && ht != NULL && key != NULL, false);
+    g_return_val_if_fail(scan != NULL && pkg != NULL, false);
 
-    scanner->config->cset_identifier_first = G_CSET_a_2_z G_CSET_DIGITS;
-    scanner->config->cset_identifier_nth = G_CSET_a_2_z G_CSET_DIGITS "+-.";
+    scan->config->cset_identifier_first = G_CSET_a_2_z G_CSET_DIGITS;
+    scan->config->cset_identifier_nth = G_CSET_a_2_z G_CSET_DIGITS "+-.";
 
-    tok = g_scanner_get_next_token(scanner);
-    *scanner->config = dlp_apt_config;
+    tok = g_scanner_get_next_token(scan);
+    *scan->config = dlp_apt_config;
 
-    if (tok != G_TOKEN_STRING || strlen(scanner->value.v_string) < 2) {
-        dlp_apt_unexp_token(scanner, G_TOKEN_STRING);
+    if (tok != G_TOKEN_STRING || strlen(scan->value.v_string) < 2) {
+        dlp_apt_unexp_token(scan, G_TOKEN_STRING);
         return false;
     }
 
-    g_hash_table_insert(ht, g_strdup(key), g_strdup(scanner->value.v_string));
+    *pkg = g_strdup(scan->value.v_string);
 
-    tok = g_scanner_get_next_token(scanner);
-    if (tok != G_TOKEN_CHAR || scanner->value.v_char != '\n') {
-        dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
+    tok = g_scanner_get_next_token(scan);
+    if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
+        dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
         return false;
     }
 
@@ -367,27 +450,28 @@ static bool dlp_apt_parse_package(GScanner *scanner, GHashTable *ht,
 /**
  * Parse a word.
  *
- * @param scanner   Scanner to use.
- * @param ht        Hash table to store the field and value.
- * @param key       Key for the field value in the hash table.
+ * @param scan  Scanner to use.
+ * @param dst   Destination for the field value.
  * @return True on success and false on failure.
  */
-static bool dlp_apt_parse_word(GScanner *scanner, GHashTable *ht,
-                               const char *key)
+static bool dlp_apt_parse_word(GScanner *scan, void *dst)
 {
     GTokenType tok;
+    char **word = dst;
 
-    tok = g_scanner_get_next_token(scanner);
+    g_return_val_if_fail(scan != NULL && word != NULL, false);
+
+    tok = g_scanner_get_next_token(scan);
     if (tok != G_TOKEN_STRING) {
-        dlp_apt_unexp_token(scanner, G_TOKEN_STRING);
+        dlp_apt_unexp_token(scan, G_TOKEN_STRING);
         return false;
     }
 
-    g_hash_table_insert(ht, g_strdup(key), g_strdup(scanner->value.v_string));
+    *word = g_strdup(scan->value.v_string);
 
-    tok = g_scanner_get_next_token(scanner);
-    if (tok != G_TOKEN_CHAR || scanner->value.v_char != '\n') {
-        dlp_apt_unexp_token(scanner, G_TOKEN_CHAR);
+    tok = g_scanner_get_next_token(scan);
+    if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
+        dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
         return false;
     }
 
@@ -397,81 +481,56 @@ static bool dlp_apt_parse_word(GScanner *scanner, GHashTable *ht,
 /**
  * Ignore tokens.
  *
- * @param scanner   Scanner to use.
- * @param ht        Not used.
- * @param key       Not used.
+ * @param scan  Scanner to use.
+ * @param dst   Not used.
  * @return True on success and false on failure.
  */
-static bool dlp_apt_parse_ignore(GScanner *scanner, GHashTable *ht,
-                                 const char *key)
+static bool dlp_apt_parse_ignore(GScanner *scan, void *dst)
 {
     GTokenType tok;
 
-    g_return_val_if_fail(scanner != NULL && ht != NULL && key != NULL, false);
+    g_return_val_if_fail(scan != NULL && dst != NULL, false);
 
-    while ((tok = g_scanner_peek_next_token(scanner)) != G_TOKEN_EOF) {
+    while ((tok = g_scanner_peek_next_token(scan)) != G_TOKEN_EOF) {
         if (tok == G_TOKEN_ERROR) {
-            g_scanner_get_next_token(scanner);
-            dlp_apt_unexp_token(scanner, G_TOKEN_IDENTIFIER);
+            g_scanner_get_next_token(scan);
+            dlp_apt_unexp_token(scan, G_TOKEN_IDENTIFIER);
             return false;
         }
 
-        if (tok == G_TOKEN_SYMBOL && scanner->position == 0) {
+        if (tok == G_TOKEN_SYMBOL && scan->position == 0) {
             return true;
         }
 
-        if (tok == G_TOKEN_CHAR && scanner->next_value.v_char == '\n' &&
-            scanner->position == 0) {
+        if (tok == G_TOKEN_CHAR && scan->next_value.v_char == '\n' &&
+            scan->position == 0) {
             return true;
         }
 
-        g_scanner_get_next_token(scanner);
+        g_scanner_get_next_token(scan);
     }
 
-    return true;
-}
-
-/**
- * Make sure that all required symbols have a non-NULL value.
- *
- * @param symbols   Symbol source.
- * @param list      List to check.
- * @param error     Optional error information.
- * @return True on success and false on failure.
- */
-static bool dlp_apt_check_required(struct dlp_apt_symbol *symbols, GList *list,
-                                   GError **error)
-{
-    struct dlp_apt_symbol *sym;
-
-    g_return_val_if_fail(symbols != NULL && list != NULL, false);
-
-    for (; list != NULL; list = list->next) {
-        for (sym = symbols; sym->name != NULL; sym++) {
-            if (sym->required && !g_hash_table_lookup(list->data, sym->name)) {
-                g_set_error(error, DLP_ERROR, DLP_APT_ERROR_REQUIRED, "%s %s",
-                            _("missing required field"), sym->name);
-                return false;
-            }
-        }
-    }
     return true;
 }
 
 /**
  * Message handler for GScanner.
  *
- * @param scanner   Source of the message.  Its user_data member must be
- *                  NULL or GError **.
- * @param msg       Message to assign to the user_data member if it's non-NULL.
- * @param error     Unused; all invocations are treated as errors.
+ * @param scan  Source of the message.  Its user_data member must be NULL or
+ *              a dlp_apt_data structure.
+ * @param msg   Message to assign to the error member of user_data.
+ * @param error Unused; all invocations are treated as errors.
  */
-static void dlp_apt_error(GScanner *scanner, gchar *msg, gboolean error)
+static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error)
 {
+    struct dlp_apt_data *data;
+
     (void)error;
 
-    g_return_if_fail(scanner != NULL && msg != NULL);
+    g_return_if_fail(scan != NULL && msg != NULL);
 
-    g_set_error(scanner->user_data, DLP_ERROR, DLP_APT_ERROR_LEX, "%u:%u: %s",
-                scanner->line, scanner->position, msg);
+    if ((data = scan->user_data) != NULL) {
+        g_set_error(data->error, DLP_ERROR, DLP_APT_ERROR_LEX, "%u:%u: %s",
+                    scan->line, scan->position, msg);
+    }
 }

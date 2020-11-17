@@ -14,15 +14,26 @@
 #include "dlp.h"
 
 enum dlp_apt_error {
-    DLP_APT_ERROR_LEX = 1,
+    DLP_APT_ERROR_FAILED = 1,
+    DLP_APT_ERROR_LEX,
     DLP_APT_ERROR_DUPLICATE,
     DLP_APT_ERROR_REQUIRED,
 };
 
-bool dlp_apt_read_release(int fd, GHashTable **release,
+struct dlp_apt_release {
+    char *codename;
+    char *suite;
+};
+
+struct dlp_apt_source {
+    char *package;
+};
+
+bool dlp_apt_release_read(int fd, struct dlp_apt_release **release,
                           GError **error) DLP_NODISCARD;
-bool dlp_apt_read_sources(int fd, GList **pkgs, GError **error) DLP_NODISCARD;
-void dlp_apt_list_free(GList **list);
-void dlp_apt_ht_free(GHashTable **ht);
+void dlp_apt_release_free(struct dlp_apt_release **release);
+bool dlp_apt_sources_read(int fd, GList **sources,
+                          GError **error) DLP_NODISCARD;
+void dlp_apt_sources_free(GList **sources);
 
 #endif /* DLP_APT_H */

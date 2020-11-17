@@ -192,4 +192,7 @@ gboolean __real_g_subprocess_wait_check(GSubprocess *proc,
                                         GCancellable *cancellable,
                                         GError **error);
 
+GTokenType __wrap_g_scanner_peek_next_token(GScanner *scanner);
+GTokenType __real_g_scanner_peek_next_token(GScanner *scanner);
+
 #endif /* TEST_H */
