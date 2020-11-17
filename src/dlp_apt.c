@@ -46,19 +46,21 @@ static const GScannerConfig dlp_apt_config = {
         G_CSET_a_2_z G_CSET_DIGITS,
     .case_sensitive = 1,
     .cset_skip_characters = " \t",
+    .store_int64 = 1,
     .identifier_2_string = 1,
-    .numbers_2_int = 1,
     .scan_identifier = 1,
     .scan_symbols = 1,
 };
 
 static void dlp_apt_sources_free_1(gpointer ptr);
+static void dlp_apt_files_free(GList **files);
 static void dlp_apt_symbols_add(GScanner *scan, struct dlp_apt_symbol *syms);
 static void dlp_apt_symbols_remove(GScanner *scan, struct dlp_apt_symbol *syms);
 static bool dlp_apt_symbols_reset(struct dlp_apt_symbol *syms,
                                   GError **error) DLP_NODISCARD;
 static bool dlp_apt_symbols_read(GScanner *scan, GError **error) DLP_NODISCARD;
 static bool dlp_apt_parse_package(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_files(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
@@ -87,9 +89,13 @@ bool dlp_apt_release_read(int fd, struct dlp_apt_release **release,
         { .name = "Date",                     .fn = dlp_apt_parse_ignore },
         { .name = "Description",              .fn = dlp_apt_parse_ignore },
         { .name = "Label",                    .fn = dlp_apt_parse_ignore },
-        { .name = "MD5Sum",                   .fn = dlp_apt_parse_ignore },
+        { .name = "MD5Sum",                   .fn = dlp_apt_parse_files,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_release, md5sum),
+          .required = true },
         { .name = "Origin",                   .fn = dlp_apt_parse_ignore },
-        { .name = "SHA256",                   .fn = dlp_apt_parse_ignore },
+        { .name = "SHA256",                   .fn = dlp_apt_parse_files,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_release, sha256),
+          .required = true },
         { .name = "Suite",                    .fn = dlp_apt_parse_word,
           .offset = G_STRUCT_OFFSET(struct dlp_apt_release, suite),
           .required = true },
@@ -139,6 +145,9 @@ bool dlp_apt_release_read(int fd, struct dlp_apt_release **release,
 void dlp_apt_release_free(struct dlp_apt_release **release)
 {
     if (release != NULL && *release != NULL) {
+        dlp_apt_files_free(&(*release)->md5sum);
+        dlp_apt_files_free(&(*release)->sha256);
+
         dlp_mem_free(&(*release)->codename);
         dlp_mem_free(&(*release)->suite);
         dlp_mem_free(release);
@@ -173,13 +182,17 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
         { .name = "Build-Depends-Arch",       .fn = dlp_apt_parse_ignore },
         { .name = "Build-Depends-Indep",      .fn = dlp_apt_parse_ignore },
         { .name = "Build-Indep-Architecture", .fn = dlp_apt_parse_ignore },
-        { .name = "Checksums-Sha256",         .fn = dlp_apt_parse_ignore },
+        { .name = "Checksums-Sha256",         .fn = dlp_apt_parse_files,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_source, checksums_sha256),
+          .required = true },
         { .name = "Comment",                  .fn = dlp_apt_parse_ignore },
         { .name = "Dgit",                     .fn = dlp_apt_parse_ignore },
         { .name = "Directory",                .fn = dlp_apt_parse_ignore },
         { .name = "Dm-Upload-Allowed",        .fn = dlp_apt_parse_ignore },
         { .name = "Extra-Source-Only",        .fn = dlp_apt_parse_ignore },
-        { .name = "Files",                    .fn = dlp_apt_parse_ignore },
+        { .name = "Files",                    .fn = dlp_apt_parse_files,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_source, files),
+          .required = true },
         { .name = "Format",                   .fn = dlp_apt_parse_ignore },
         { .name = "Go-Import-Path",           .fn = dlp_apt_parse_ignore },
         { .name = "Homepage",                 .fn = dlp_apt_parse_ignore },
@@ -302,8 +315,33 @@ static void dlp_apt_sources_free_1(gpointer ptr)
     struct dlp_apt_source *s = ptr;
 
     if (s != NULL) {
+        dlp_apt_files_free(&s->files);
+        dlp_apt_files_free(&s->checksums_sha256);
+
         dlp_mem_free(&s->package);
         dlp_mem_free(&s);
+    }
+}
+
+/**
+ * Free a list of dlp_apt_file structures.
+ *
+ * @param files List to free.
+ */
+void dlp_apt_files_free(GList **files)
+{
+    GList *elt;
+    struct dlp_apt_file *f;
+
+    if (files != NULL && *files != NULL) {
+        for (elt = *files; elt != NULL; elt = elt->next) {
+            f = elt->data;
+            dlp_mem_free(&f->name);
+            dlp_mem_free(&f->digest);
+            dlp_mem_free(&f);
+        }
+        g_list_free(*files);
+        *files = NULL;
     }
 }
 
@@ -441,6 +479,109 @@ static bool dlp_apt_parse_package(GScanner *scan, void *dst)
     tok = g_scanner_get_next_token(scan);
     if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
         dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Parse a field with file information.
+ *
+ * @param scan  Scanner to use.
+ * @param dst   Destination for the field value.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_parse_files(GScanner *scan, void *dst)
+{
+    GTokenType tok;
+    bool success = false;
+    struct dlp_apt_file *file = NULL;
+    GList **files = dst;
+
+    g_return_val_if_fail(scan != NULL && files != NULL, false);
+    *files = NULL;
+
+    /*
+     * A newline is required between the field separator and the first value.
+     */
+    tok = g_scanner_get_next_token(scan);
+    if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
+        dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+        return false;
+    }
+
+    do {
+        /*
+         * End tokens.
+         */
+        tok = g_scanner_peek_next_token(scan);
+        if (tok == G_TOKEN_EOF || tok == G_TOKEN_SYMBOL ||
+            (tok == G_TOKEN_CHAR && scan->value.v_char == '\n')) {
+            success = true;
+            break;
+        }
+
+        file = dlp_mem_alloc(sizeof(*file));
+        *files = g_list_prepend(*files, file);
+
+        /*
+         * Digest.
+         *
+         * FIXME: the field type should be taken into account in order to
+         * enforce a strict length requirement based on the digest algorithm.
+         */
+        tok = g_scanner_get_next_token(scan);
+        if (tok != G_TOKEN_STRING || scan->value.v_string == NULL ||
+            strlen(scan->value.v_string) < 32) {
+            dlp_apt_unexp_token(scan, G_TOKEN_STRING);
+            break;
+        }
+        file->digest = g_strdup(scan->value.v_string);
+
+        /*
+         * Size.
+         */
+        scan->config->cset_identifier_first = "";
+        scan->config->cset_identifier_nth = "";
+        tok = g_scanner_get_next_token(scan);
+        *scan->config = dlp_apt_config;
+
+        if (tok != G_TOKEN_INT) {
+            dlp_apt_unexp_token(scan, G_TOKEN_INT);
+            break;
+        }
+        file->size = scan->value.v_int64;
+
+        /*
+         * Name.
+         */
+        tok = g_scanner_get_next_token(scan);
+        if (tok != G_TOKEN_STRING || scan->value.v_string == NULL) {
+            dlp_apt_unexp_token(scan, G_TOKEN_STRING);
+            break;
+        }
+        file->name = g_strdup(scan->value.v_string);
+
+        /*
+         * Separator.
+         */
+        if (g_scanner_get_next_token(scan) != G_TOKEN_CHAR ||
+            scan->value.v_char != '\n') {
+            dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+            break;
+        }
+    } while (true);
+
+    if (!success) {
+        dlp_apt_files_free(files);
+        return false;
+    }
+
+    if (*files == NULL) {
+        struct dlp_apt_data *data = scan->user_data;
+        g_set_error(data->error, DLP_ERROR, DLP_APT_ERROR_REQUIRED, "%s",
+                    _("no elements"));
         return false;
     }
 
