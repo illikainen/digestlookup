@@ -306,35 +306,67 @@ static void test_check_stat(void **state)
     assert_int_not_equal(fd, -1);
 
     assert_int_equal(fstat(fd, &s), 0);
-    assert_true(dlp_fs_check_stat(&s, &err));
+    assert_false(dlp_fs_check_stat(&s, DLP_FS_DIR, &err));
+    TEST_ASSERT_ERR(err, DLP_FS_ERROR_TYPE, "*");
+    assert_true(dlp_fs_check_stat(&s, DLP_FS_REG, &err));
     assert_null(err);
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(fchmod(fd, S_IWUSR | S_IWGRP), 0);
     assert_int_equal(fstat(fd, &s), 0);
-    assert_false(dlp_fs_check_stat(&s, &err));
+    assert_false(dlp_fs_check_stat(&s, DLP_FS_REG, &err));
     TEST_ASSERT_ERR(err, EBADFD, "*");
     g_clear_error(&err);
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(fchmod(fd, S_IWUSR | S_IWOTH), 0);
     assert_int_equal(fstat(fd, &s), 0);
-    assert_false(dlp_fs_check_stat(&s, &err));
+    assert_false(dlp_fs_check_stat(&s, DLP_FS_REG, &err));
     TEST_ASSERT_ERR(err, EBADFD, "*");
     g_clear_error(&err);
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(fchmod(fd, S_IWUSR | S_IWGRP | S_IWOTH), 0);
     assert_int_equal(fstat(fd, &s), 0);
-    assert_false(dlp_fs_check_stat(&s, &err));
+    assert_false(dlp_fs_check_stat(&s, DLP_FS_REG, &err));
     TEST_ASSERT_ERR(err, EBADFD, "*");
     g_clear_error(&err);
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(fchmod(fd, S_IWUSR), 0);
     assert_int_equal(fstat(fd, &s), 0);
-    assert_true(dlp_fs_check_stat(&s, &err));
+    assert_true(dlp_fs_check_stat(&s, DLP_FS_REG, &err));
     assert_null(err);
+
+    assert_int_equal(close(fd), 0);
+}
+
+static void test_check_path(void **state)
+{
+    int fd;
+    char *path = "check-path";
+    GError *err = NULL;
+
+    (void)state;
+
+    assert_false(dlp_fs_check_path(path, DLP_FS_REG, true, &err));
+    TEST_ASSERT_ERR(err, ENOENT, "*");
+
+    assert_true(dlp_fs_check_path(path, DLP_FS_REG, false, &err));
+    assert_null(err);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    fd = open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, S_IWUSR);
+    assert_int_not_equal(fd, -1);
+
+    assert_true(dlp_fs_check_path(path, DLP_FS_REG, true, &err));
+    assert_null(err);
+
+    assert_false(dlp_fs_check_path(path, DLP_FS_DIR, true, &err));
+    TEST_ASSERT_ERR(err, DLP_FS_ERROR_TYPE, "*");
+
+    assert_false(dlp_fs_check_path(path, DLP_FS_DIR, false, &err));
+    TEST_ASSERT_ERR(err, DLP_FS_ERROR_TYPE, "*");
 
     assert_int_equal(close(fd), 0);
 }
@@ -748,6 +780,7 @@ int main(void)
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_user_dir),
         cmocka_unit_test(test_check_stat),
+        cmocka_unit_test(test_check_path),
         cmocka_unit_test(test_openat),
         cmocka_unit_test(test_open),
         cmocka_unit_test(test_close),

@@ -98,7 +98,7 @@ bool dlp_fs_openat(int dfd, const char *path, int flags, mode_t mode, int *fd,
         return false;
     }
 
-    if (!dlp_fs_check_stat(&s, error)) {
+    if (!dlp_fs_check_stat(&s, s.st_mode & DLP_FS_TYPE, error)) {
         DLP_DISCARD(dlp_fs_close(fd, NULL));
         return false;
     }
@@ -207,8 +207,6 @@ bool dlp_fs_truncate(int fd, off_t len, GError **error)
  */
 bool dlp_fs_mkdir(const char *path, GError **error)
 {
-    struct stat s;
-
     g_return_val_if_fail(path != NULL, false);
 
     errno = 0;
@@ -218,13 +216,7 @@ bool dlp_fs_mkdir(const char *path, GError **error)
         return false;
     }
 
-    errno = 0;
-    if (stat(path, &s) != 0) {
-        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
-        return false;
-    }
-
-    if (!dlp_fs_check_stat(&s, error)) {
+    if (!dlp_fs_check_path(path, DLP_FS_DIR, true, error)) {
         return false;
     }
 
@@ -337,15 +329,50 @@ bool dlp_fs_mkstemp(int *fd, GError **error)
 }
 
 /**
+ * Check that a path looks reasonable.
+ *
+ * @param path       Path to check.
+ * @param type       Required type of the path.
+ * @param must_exist Whether the path must exist.
+ * @param error      Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_check_path(const char *path, mode_t type, bool must_exist,
+                       GError **error)
+{
+    struct stat s;
+
+    g_return_val_if_fail(path != NULL, false);
+
+    errno = 0;
+    if (stat(path, &s) != 0) {
+        if (errno == ENOENT && !must_exist) {
+            return true;
+        }
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        return false;
+    }
+
+    return dlp_fs_check_stat(&s, type, error);
+}
+
+/**
  * Check that a stat structure looks reasonable.
  *
  * @param s     Structure to check.
+ * @param type  Required type of the path.
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
-bool dlp_fs_check_stat(const struct stat *s, GError **error)
+bool dlp_fs_check_stat(const struct stat *s, mode_t type, GError **error)
 {
     g_return_val_if_fail(s != NULL, false);
+
+    if ((s->st_mode & DLP_FS_TYPE) != type) {
+        g_set_error(error, DLP_ERROR, DLP_FS_ERROR_TYPE, "%s",
+                    _("invalid type"));
+        return false;
+    }
 
     if ((s->st_uid != getuid() && s->st_uid != 0) ||
         (s->st_gid != getgid() && s->st_gid != 0) ||

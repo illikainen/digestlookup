@@ -718,7 +718,6 @@ out:
 static bool dlp_gpg_get_exec(struct dlp_gpg *gpg, const char **path,
                              GError **error)
 {
-    struct stat s;
     gpgme_engine_info_t info;
 
     g_return_val_if_fail(gpg != NULL && path != NULL, false);
@@ -733,12 +732,12 @@ static bool dlp_gpg_get_exec(struct dlp_gpg *gpg, const char **path,
 
     for (; info != NULL; info = info->next) {
         if (info->protocol == GPGME_PROTOCOL_OPENPGP) {
-            if (info->file_name == NULL || stat(info->file_name, &s) != 0) {
+            if (info->file_name == NULL) {
                 dlp_gpg_set_error(GPG_ERR_ENOEXEC, error);
                 return false;
             }
 
-            if (!dlp_fs_check_stat(&s, error)) {
+            if (!dlp_fs_check_path(info->file_name, DLP_FS_REG, true, error)) {
                 return false;
             }
 

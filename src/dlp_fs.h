@@ -15,8 +15,13 @@
 
 #include "dlp.h"
 
+#define DLP_FS_TYPE ((unsigned int)(S_IFMT))
+#define DLP_FS_DIR ((unsigned int)(S_IFDIR))
+#define DLP_FS_REG ((unsigned int)(S_IFREG))
+
 enum dlp_fs_error {
     DLP_FS_ERROR_FAILED = 1,
+    DLP_FS_ERROR_TYPE,
 };
 
 typedef bool (*dlp_fs_walk_cb)(int dfd, const char *name, const char *path,
@@ -37,7 +42,10 @@ bool dlp_fs_mkdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_rmdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdtemp(char **path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkstemp(int *fd, GError **error) DLP_NODISCARD;
-bool dlp_fs_check_stat(const struct stat *s, GError **error) DLP_NODISCARD;
+bool dlp_fs_check_path(const char *path, mode_t type, bool must_exist,
+                       GError **error) DLP_NODISCARD;
+bool dlp_fs_check_stat(const struct stat *s, mode_t type,
+                       GError **error) DLP_NODISCARD;
 bool dlp_fs_cache_dir(char **path, GError **error) DLP_NODISCARD;
 bool dlp_fs_config_dir(char **path, GError **error) DLP_NODISCARD;
 bool dlp_fs_data_dir(char **path, GError **error) DLP_NODISCARD;
