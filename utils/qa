@@ -269,8 +269,8 @@ class Coverage(Backend):
         ]
 
         p = call("llvm-cov", "show", "-region-coverage-lt=100", *common)
-        debug(p.stdout)
-        debug(p.stderr)
+        error(p.stdout)
+        error(p.stderr)
 
         p = call("llvm-cov", "report", *common)
         error(p.stdout)
