@@ -7,6 +7,7 @@
 #include "dlp_fs.h"
 
 #include <errno.h>
+#include <stdarg.h>
 
 #include <fcntl.h>
 #include <unistd.h>
@@ -19,6 +20,8 @@
 
 static bool dlp_fs_user_dir(const char *base, char **path,
                             GError **error) DLP_NODISCARD;
+static bool dlp_fs_user_path(const char *base, char **path, va_list *ap,
+                             GError **error) DLP_NODISCARD;
 static bool dlp_fs_walk_do(int fd, const char *path, dlp_fs_walk_cb cb,
                            void *data, GError **error) DLP_NODISCARD;
 static bool dlp_fs_rmdir_cb(int fd, const char *name, const char *path,
@@ -400,6 +403,33 @@ bool dlp_fs_cache_dir(char **path, GError **error)
 }
 
 /**
+ * Retrieve a per-user path in the cache directory.
+ *
+ * The base directory for the path is created if it doesn't exist.
+ *
+ * @param path  Path that must be freed after use.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_cache_path(char **path, GError **error, ...)
+{
+    va_list ap;
+    char *dir = NULL;
+    bool rv = false;
+
+    if (!dlp_fs_cache_dir(&dir, error)) {
+        return false;
+    }
+
+    va_start(ap, error);
+    rv = dlp_fs_user_path(dir, path, &ap, error);
+    va_end(ap);
+
+    dlp_mem_free(&dir);
+    return rv;
+}
+
+/**
  * Retrieve a per-user config directory.
  *
  * The directory is created if it doesn't exist.
@@ -414,6 +444,33 @@ bool dlp_fs_config_dir(char **path, GError **error)
 }
 
 /**
+ * Retrieve a per-user path in the config directory.
+ *
+ * The base directory for the path is created if it doesn't exist.
+ *
+ * @param path  Path that must be freed after use.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_config_path(char **path, GError **error, ...)
+{
+    va_list ap;
+    char *dir = NULL;
+    bool rv = false;
+
+    if (!dlp_fs_config_dir(&dir, error)) {
+        return false;
+    }
+
+    va_start(ap, error);
+    rv = dlp_fs_user_path(dir, path, &ap, error);
+    va_end(ap);
+
+    dlp_mem_free(&dir);
+    return rv;
+}
+
+/**
  * Retrieve a per-user data directory.
  *
  * The directory is created if it doesn't exist.
@@ -425,6 +482,33 @@ bool dlp_fs_config_dir(char **path, GError **error)
 bool dlp_fs_data_dir(char **path, GError **error)
 {
     return dlp_fs_user_dir(g_get_user_data_dir(), path, error);
+}
+
+/**
+ * Retrieve a per-user path in the data directory.
+ *
+ * The base directory for the path is created if it doesn't exist.
+ *
+ * @param path  Path that must be freed after use.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_data_path(char **path, GError **error, ...)
+{
+    va_list ap;
+    char *dir = NULL;
+    bool rv = false;
+
+    if (!dlp_fs_data_dir(&dir, error)) {
+        return false;
+    }
+
+    va_start(ap, error);
+    rv = dlp_fs_user_path(dir, path, &ap, error);
+    va_end(ap);
+
+    dlp_mem_free(&dir);
+    return rv;
 }
 
 /**
@@ -447,6 +531,36 @@ static bool dlp_fs_user_dir(const char *base, char **path, GError **error)
         return false;
     }
 
+    return true;
+}
+
+/**
+ * Retrieve a per-user path with a given base.
+ *
+ * The base directory for the path is created if it doesn't exist.
+ *
+ * @param base  Prefix for the path.
+ * @param path  Path that must be freed after use.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_fs_user_path(const char *base, char **path, va_list *ap,
+                             GError **error)
+{
+    char *dir;
+
+    g_return_val_if_fail(base != NULL && path != NULL && ap != NULL, false);
+
+    *path = g_build_filename_valist(base, ap);
+
+    dir = g_path_get_dirname(*path);
+    if (!dlp_fs_mkdir(dir, error)) {
+        dlp_mem_free(&dir);
+        dlp_mem_free(path);
+        return false;
+    }
+
+    dlp_mem_free(&dir);
     return true;
 }
 

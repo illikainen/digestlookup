@@ -47,7 +47,13 @@ bool dlp_fs_check_path(const char *path, mode_t type, bool must_exist,
 bool dlp_fs_check_stat(const struct stat *s, mode_t type,
                        GError **error) DLP_NODISCARD;
 bool dlp_fs_cache_dir(char **path, GError **error) DLP_NODISCARD;
+bool dlp_fs_cache_path(char **path, GError **error,
+                       ...) DLP_NODISCARD G_GNUC_NULL_TERMINATED;
 bool dlp_fs_config_dir(char **path, GError **error) DLP_NODISCARD;
+bool dlp_fs_config_path(char **path, GError **error,
+                        ...) DLP_NODISCARD G_GNUC_NULL_TERMINATED;
 bool dlp_fs_data_dir(char **path, GError **error) DLP_NODISCARD;
+bool dlp_fs_data_path(char **path, GError **error,
+                      ...) DLP_NODISCARD G_GNUC_NULL_TERMINATED;
 
 #endif /* DLP_FS_H */

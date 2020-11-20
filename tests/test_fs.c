@@ -293,6 +293,67 @@ static void test_user_dir(void **state)
     }
 }
 
+static void test_user_path(void **state)
+{
+    size_t i;
+    struct stat st;
+    bool (*fn[])(char **path, GError **error, ...) = {
+        dlp_fs_cache_path,
+        dlp_fs_config_path,
+        dlp_fs_data_path,
+    };
+    char *path[TEST_ARRAY_LEN(fn)];
+    char *dir;
+    char *typedir;
+    char *p = NULL;
+    GError *err = NULL;
+    struct state *s = *state;
+
+    for (i = 0; i < TEST_ARRAY_LEN(fn); i++) {
+        assert_true(fn[i](&path[i], &err, "foo", "bar", NULL));
+        assert_null(err);
+        assert_ptr_equal(path[i], strstr(path[i], s->home));
+        assert_non_null(dir = g_path_get_dirname(path[i]));
+        assert_non_null(typedir = g_path_get_dirname(dir));
+        assert_int_equal(stat(dir, &st), 0);
+        assert_true(st.st_mode & DLP_FS_DIR);
+        assert_int_not_equal(stat(path[i], &st), 0);
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(chmod(typedir, S_IRWXU | S_IWGRP), 0);
+        assert_false(fn[i](&p, &err, "foo", "baz", NULL));
+        assert_null(p);
+        TEST_ASSERT_ERR(err, EBADFD, "*");
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(chmod(typedir, S_IRWXU | S_IWOTH), 0);
+        assert_false(fn[i](&p, &err, "foo", "qux", NULL));
+        assert_null(p);
+        TEST_ASSERT_ERR(err, EBADFD, "*");
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(chmod(typedir, S_IRWXU), 0);
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(chmod(dir, S_IRWXU | S_IWGRP), 0);
+        assert_false(fn[i](&p, &err, "foo", "baz", NULL));
+        assert_null(p);
+        TEST_ASSERT_ERR(err, EBADFD, "*");
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(chmod(dir, S_IRWXU | S_IWOTH), 0);
+        assert_false(fn[i](&p, &err, "foo", "qux", NULL));
+        assert_null(p);
+        TEST_ASSERT_ERR(err, EBADFD, "*");
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        assert_int_equal(chmod(dir, S_IRWXU), 0);
+        dlp_mem_free(&dir);
+        dlp_mem_free(&typedir);
+        dlp_mem_free(&path[i]);
+    }
+}
+
 static void test_check_stat(void **state)
 {
     int fd;
@@ -779,6 +840,7 @@ int main(void)
 {
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_user_dir),
+        cmocka_unit_test(test_user_path),
         cmocka_unit_test(test_check_stat),
         cmocka_unit_test(test_check_path),
         cmocka_unit_test(test_openat),
