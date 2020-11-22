@@ -32,6 +32,7 @@ include(AddGPGME)
 include(AddPkgConfig)
 include(AddThreads)
 include(CheckIPOSupported)
+include(GNUInstallDirs)
 
 #
 # Default to release builds.
@@ -209,6 +210,11 @@ enable_testing()
 add_subdirectory(data)
 add_subdirectory(src)
 add_subdirectory(tests)
+
+#
+# Installation.
+#
+install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 #
 # Check and fix targets.

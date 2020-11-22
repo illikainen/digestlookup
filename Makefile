@@ -4,20 +4,15 @@ BUILD ?= $(PWD)/build
 BUILD_DEBUG ?= $(BUILD)/debug
 BUILD_RELEASE ?= $(BUILD)/release
 
-BINARY := digestlookup
-BINARY_DEBUG := $(BINARY)-debug
-BINARY_RELEASE := $(BINARY)
-
 all: release
 
 clean:
-	@rm -rf $(BUILD) $(BINARY_DEBUG) $(BINARY_RELEASE)
+	@rm -rf $(BUILD)
 
 debug:
 	@mkdir -p $(BUILD_DEBUG)
 	@cd $(BUILD_DEBUG) && \
 		cmake $(SOURCE) -DCMAKE_BUILD_TYPE=Debug && make
-	@cp $(BUILD_DEBUG)/src/$(BINARY) $(BINARY_DEBUG)
 	@cp $(BUILD_DEBUG)/compile_commands.json .
 	@utils/fix-clangd compile_commands.json
 
@@ -25,7 +20,9 @@ release:
 	@mkdir -p $(BUILD_RELEASE)
 	@cd $(BUILD_RELEASE) && \
 		cmake $(SOURCE) -DCMAKE_BUILD_TYPE=Release && make
-	@cp $(BUILD_RELEASE)/src/$(BINARY) $(BINARY_RELEASE)
+
+install: release
+	@cd $(BUILD_RELEASE) && make install
 
 test: debug
 	@find $(BUILD_DEBUG) \( -name "*.profraw" -o -name "profdata" \) \
@@ -38,4 +35,4 @@ check: test
 fix: debug
 	@cd $(BUILD_DEBUG) && make fix
 
-.PHONY: all clean debug release test check fix
+.PHONY: all clean debug release install test check fix
