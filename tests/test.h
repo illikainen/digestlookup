@@ -195,4 +195,10 @@ gboolean __real_g_subprocess_wait_check(GSubprocess *proc,
 GTokenType __wrap_g_scanner_peek_next_token(GScanner *scanner);
 GTokenType __real_g_scanner_peek_next_token(GScanner *scanner);
 
+gpointer __wrap_g_bytes_unref_to_data(GBytes *bytes, gsize *size);
+gpointer __real_g_bytes_unref_to_data(GBytes *bytes, gsize *size);
+
+GResource *__wrap_g_static_resource_get_resource(GStaticResource *resource);
+GResource *__real_g_static_resource_get_resource(GStaticResource *resource);
+
 #endif /* TEST_H */

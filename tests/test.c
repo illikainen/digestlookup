@@ -512,4 +512,31 @@ GTokenType __wrap_g_scanner_peek_next_token(GScanner *scanner)
     return __real_g_scanner_peek_next_token(scanner);
 }
 
+/* cppcheck-suppress unusedFunction */
+gpointer __wrap_g_bytes_unref_to_data(GBytes *bytes, gsize *size)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (elt.value == NULL) {
+            *size = 0;
+            return NULL;
+        }
+        *size = strlen(elt.value);
+        return elt.value;
+    }
+    return __real_g_bytes_unref_to_data(bytes, size);
+}
+
+/* cppcheck-suppress unusedFunction */
+GResource *__wrap_g_static_resource_get_resource(GStaticResource *resource)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_g_static_resource_get_resource(resource);
+}
+
 #endif /* TEST_WRAP */
