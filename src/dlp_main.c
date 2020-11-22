@@ -11,5 +11,5 @@ int main(int argc, char **argv)
     (void)argc;
     (void)argv;
 
-    return dlp_cli() != 0;
+    return !dlp_cli();
 }

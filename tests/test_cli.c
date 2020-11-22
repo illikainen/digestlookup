@@ -11,7 +11,7 @@ static void test_cli(void **state)
 {
     (void)state;
 
-    assert_int_equal(dlp_cli(), 0);
+    assert_true(dlp_cli());
 }
 
 int main(void)

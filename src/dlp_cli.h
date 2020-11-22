@@ -7,11 +7,10 @@
 #ifndef DLP_CLI_H
 #define DLP_CLI_H
 
-#include <errno.h>
+#include <stdbool.h>
 
-#include "config.h"
 #include "dlp.h"
 
-errno_t dlp_cli(void) DLP_NODISCARD;
+bool dlp_cli(void) DLP_NODISCARD;
 
 #endif /* DLP_CLI_H */

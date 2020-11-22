@@ -6,7 +6,7 @@
 
 #include "dlp_cli.h"
 
-errno_t dlp_cli(void)
+bool dlp_cli(void)
 {
-    return 0;
+    return true;
 }
