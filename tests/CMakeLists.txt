@@ -42,6 +42,11 @@ add_pkg_config(TARGET ${PROJECT_NAME}_test_static PKG libmicrohttpd REQUIRED)
 #
 # Tests.
 #
+set(env
+    G_DEBUG=fatal-warnings
+    G_MESSAGES_DEBUG=all
+    LSAN_OPTIONS=report_objects=1)
+
 foreach(test ${tests})
     string(REGEX REPLACE "/" "-" test_bin ${test})
     string(REGEX REPLACE "\.c$" "" test_bin ${test_bin})
@@ -49,6 +54,5 @@ foreach(test ${tests})
     add_executable(${test_bin} ${test})
     add_test(${test_bin} ${test_bin})
     target_link_libraries(${test_bin} PRIVATE ${PROJECT_NAME}_test_static)
-    set_tests_properties(${test_bin} PROPERTIES
-        ENVIRONMENT G_DEBUG=fatal-warnings)
+    set_tests_properties(${test_bin} PROPERTIES ENVIRONMENT "${env}")
 endforeach()
