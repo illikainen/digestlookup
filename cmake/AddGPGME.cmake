@@ -3,8 +3,7 @@
 # SPDX-License-Identifier:
 
 function(add_gpgme)
-    cmake_parse_arguments(ARGS "REQUIRED" "TARGET;PKG;SCOPE;THREAD"
-        "" "${ARGN}")
+    cmake_parse_arguments(ARGS "REQUIRED" "TARGET;SCOPE;THREAD" "" "${ARGN}")
 
     set(mode "STATUS")
     if(ARGS_REQUIRED)
@@ -22,33 +21,23 @@ function(add_gpgme)
         return()
     endif()
 
+    set(cmd ${gpgme_config})
     if(ARGS_THREAD)
-        execute_process(
-            COMMAND ${gpgme_config} --cflags --thread=${ARGS_THREAD}
-            RESULT_VARIABLE gpgme_cflags_rc
-            OUTPUT_VARIABLE gpgme_cflags
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        execute_process(
-            COMMAND ${gpgme_config} --libs --thread=${ARGS_THREAD}
-            RESULT_VARIABLE gpgme_libs_rc
-            OUTPUT_VARIABLE gpgme_libs
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-    else()
-        execute_process(
-            COMMAND ${gpgme_config} --cflags
-            RESULT_VARIABLE gpgme_cflags_rc
-            OUTPUT_VARIABLE gpgme_cflags
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
-        execute_process(
-            COMMAND ${gpgme_config} --libs
-            RESULT_VARIABLE gpgme_libs_rc
-            OUTPUT_VARIABLE gpgme_libs
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-        )
+        list(APPEND cmd "--thread=${ARGS_THREAD}")
     endif()
+
+    execute_process(
+        COMMAND ${cmd} --cflags
+        RESULT_VARIABLE gpgme_cflags_rc
+        OUTPUT_VARIABLE gpgme_cflags
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    execute_process(
+        COMMAND ${cmd} --libs
+        RESULT_VARIABLE gpgme_libs_rc
+        OUTPUT_VARIABLE gpgme_libs
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
 
     if(gpgme_cflags_rc OR gpgme_libs_rc)
         message("${mode}" "GPGME: ${gpgme_config} failed")
@@ -57,10 +46,12 @@ function(add_gpgme)
 
     if(ARGS_TARGET)
         if(gpgme_cflags)
-            target_compile_options("${ARGS_TARGET}" "${gpgme_cflags}")
+            target_compile_options("${ARGS_TARGET}"
+                "${scope}" "${gpgme_cflags}")
         endif()
         if(gpgme_libs)
-            target_link_libraries("${ARGS_TARGET}" "${gpgme_libs}")
+            target_link_libraries("${ARGS_TARGET}"
+                "${scope}" "${gpgme_libs}")
         endif()
     else()
         if(gpgme_cflags)
