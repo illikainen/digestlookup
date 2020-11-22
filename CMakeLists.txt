@@ -190,7 +190,7 @@ add_threads(REQUIRED)
 #
 # Transpile config.h.
 #
-configure_file(src/config.h.in config.h)
+configure_file(src/config.h.in config.h ESCAPE_QUOTES)
 
 #
 # Include directories.
