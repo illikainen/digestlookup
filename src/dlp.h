@@ -10,9 +10,13 @@
 #if defined(__clang__) || defined(__GNUC__)
 #    define DLP_ALLOC_SIZE(n) __attribute__((alloc_size(n)))
 #    define DLP_NODISCARD __attribute__((warn_unused_result))
+#    define DLP_CONSTRUCTOR __attribute__((constructor))
+#    define DLP_DESTRUCTOR __attribute__((destructor))
 #else
 #    define DLP_ALLOC_SIZE(n)
 #    define DLP_NODISCARD
+#    define DLP_CONSTRUCTOR _Static_assert(false, "fix DLP_CONSTRUCTOR");
+#    define DLP_DESTRUCTOR _Static_assert(false, "fix DLP_DESTRUCTOR");
 #endif
 
 #if defined(__clang__)
