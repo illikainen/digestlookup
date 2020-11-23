@@ -31,6 +31,25 @@ static void test_log_sanitize(void)
                            flags);
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr("ERROR: _[31mfoo_[0m\n");
+
+    g_test_trap_subprocess("/log/sanitize/subprocess/escape-print", 0, flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout("_[31mfoo_[0m\n");
+
+    g_test_trap_subprocess("/log/sanitize/subprocess/escape-printerr", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr("_[31mfoo_[0m\n");
+
+    if (test_wrap_p()) {
+        g_test_trap_subprocess("/log/sanitize/subprocess/escape-print-wrap", 0,
+                               flags);
+        g_test_trap_assert_passed();
+
+        g_test_trap_subprocess("/log/sanitize/subprocess/escape-printerr-wrap",
+                               0, flags);
+        g_test_trap_assert_passed();
+    }
 }
 
 static void test_log_sanitize_escape_debug(void)
@@ -58,6 +77,32 @@ static void test_log_sanitize_escape_warning(void)
 static void test_log_sanitize_escape_critical(void)
 {
     g_critical("\033[31mfoo\033[0m");
+}
+
+static void test_log_sanitize_escape_print(void)
+{
+    g_print("\033[31mfoo\033[0m");
+}
+
+static void test_log_sanitize_escape_print_wrap(void)
+{
+    if (test_wrap_p()) {
+        test_wrap_push(g_strdup, true, NULL);
+        g_print("\033[31mfoo\033[0m");
+    }
+}
+
+static void test_log_sanitize_escape_printerr(void)
+{
+    g_printerr("\033[31mfoo\033[0m");
+}
+
+static void test_log_sanitize_escape_printerr_wrap(void)
+{
+    if (test_wrap_p()) {
+        test_wrap_push(g_strdup, true, NULL);
+        g_printerr("\033[31mfoo\033[0m");
+    }
 }
 
 static void test_log_file(void)
@@ -105,6 +150,14 @@ int main(int argc, char **argv)
                     test_log_sanitize_escape_warning);
     g_test_add_func("/log/sanitize/subprocess/escape-critical",
                     test_log_sanitize_escape_critical);
+    g_test_add_func("/log/sanitize/subprocess/escape-print",
+                    test_log_sanitize_escape_print);
+    g_test_add_func("/log/sanitize/subprocess/escape-print-wrap",
+                    test_log_sanitize_escape_print_wrap);
+    g_test_add_func("/log/sanitize/subprocess/escape-printerr",
+                    test_log_sanitize_escape_printerr);
+    g_test_add_func("/log/sanitize/subprocess/escape-printerr-wrap",
+                    test_log_sanitize_escape_printerr_wrap);
     g_test_add_func("/log/file", test_log_file);
     g_test_add_func("/log/file/subprocess/separator", test_log_file_separator);
     g_test_add_func("/log/file/subprocess/no-separator",

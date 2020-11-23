@@ -539,4 +539,15 @@ GResource *__wrap_g_static_resource_get_resource(GStaticResource *resource)
     return __real_g_static_resource_get_resource(resource);
 }
 
+/* cppcheck-suppress unusedFunction */
+gchar *__wrap_g_strdup(const gchar *str)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_g_strdup(str);
+}
+
 #endif /* TEST_WRAP */

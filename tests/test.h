@@ -201,4 +201,7 @@ gpointer __real_g_bytes_unref_to_data(GBytes *bytes, gsize *size);
 GResource *__wrap_g_static_resource_get_resource(GStaticResource *resource);
 GResource *__real_g_static_resource_get_resource(GStaticResource *resource);
 
+gchar *__wrap_g_strdup(const gchar *str) G_GNUC_MALLOC;
+gchar *__real_g_strdup(const gchar *str) G_GNUC_MALLOC;
+
 #endif /* TEST_H */

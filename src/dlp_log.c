@@ -26,6 +26,8 @@ static GLogWriterOutput dlp_log_writer(GLogLevelFlags level,
                                        gpointer data) DLP_NODISCARD;
 static void dlp_log_handler(const gchar *domain, GLogLevelFlags level,
                             const gchar *msg, gpointer data) G_GNUC_NORETURN;
+static void dlp_log_print_handler(const gchar *str);
+static void dlp_log_printerr_handler(const gchar *str);
 
 static bool dlp_log_verbose;
 
@@ -40,7 +42,7 @@ void dlp_log_set_verbosity(bool enable)
 }
 
 /**
- * Set GLib logging callbacks.
+ * Set GLib log and message callbacks.
  */
 /* cppcheck-suppress unusedFunction */
 static void dlp_log_init(void)
@@ -51,6 +53,8 @@ static void dlp_log_init(void)
     g_log_set_writer_func(dlp_log_writer, NULL, NULL);
     g_log_set_handler(NULL, lvl, dlp_log_handler, NULL);
     g_log_set_default_handler(dlp_log_handler, NULL);
+    g_set_print_handler(dlp_log_print_handler);
+    g_set_printerr_handler(dlp_log_printerr_handler);
 }
 
 /**
@@ -230,4 +234,40 @@ static void dlp_log_handler(const gchar *domain, GLogLevelFlags level,
     (void)data;
 
     abort();
+}
+
+/**
+ * Handler for g_print().
+ *
+ * @param str String to print.
+ */
+static void dlp_log_print_handler(const gchar *str)
+{
+    char *msg;
+
+    if ((msg = g_strdup(str)) == NULL) {
+        return;
+    }
+
+    dlp_str_sanitize(msg);
+    fprintf(stdout, "%s\n", msg);
+    g_free(msg);
+}
+
+/**
+ * Handler for g_printerr().
+ *
+ * @param str String to print.
+ */
+static void dlp_log_printerr_handler(const gchar *str)
+{
+    char *msg;
+
+    if ((msg = g_strdup(str)) == NULL) {
+        return;
+    }
+
+    dlp_str_sanitize(msg);
+    fprintf(stderr, "%s\n", msg);
+    g_free(msg);
 }
