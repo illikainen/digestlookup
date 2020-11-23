@@ -208,6 +208,7 @@ static GLogWriterOutput dlp_log_writer(GLogLevelFlags level,
 
     dlp_str_sanitize(msg);
     fprintf(fp, "%s%s\n", pfx, msg);
+    fflush(fp);
     dlp_mem_free(&msg);
 
     return G_LOG_WRITER_UNHANDLED;
@@ -251,6 +252,7 @@ static void dlp_log_print_handler(const gchar *str)
 
     dlp_str_sanitize(msg);
     fprintf(stdout, "%s\n", msg);
+    fflush(stdout);
     g_free(msg);
 }
 
@@ -269,5 +271,6 @@ static void dlp_log_printerr_handler(const gchar *str)
 
     dlp_str_sanitize(msg);
     fprintf(stderr, "%s\n", msg);
+    fflush(stderr);
     g_free(msg);
 }
