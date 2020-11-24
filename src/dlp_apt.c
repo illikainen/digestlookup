@@ -328,7 +328,7 @@ static void dlp_apt_sources_free_1(gpointer ptr)
  *
  * @param files List to free.
  */
-void dlp_apt_files_free(GList **files)
+static void dlp_apt_files_free(GList **files)
 {
     GList *elt;
     struct dlp_apt_file *f;
