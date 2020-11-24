@@ -16,5 +16,7 @@
 #define dlp_mem_free(ptr) dlp_mem_clear(ptr, g_free)
 
 void *dlp_mem_alloc(rsize_t size) DLP_NODISCARD DLP_ALLOC_SIZE(1);
+void dlp_mem_ptr_array_unref(GPtrArray **array);
+void dlp_mem_ptr_array_destroy(gpointer ptr);
 
 #endif /* DLP_MEM_H */

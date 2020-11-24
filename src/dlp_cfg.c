@@ -47,7 +47,6 @@ static bool dlp_cfg_get_files(GKeyFile *kf, const char *group, const char *key,
 static bool dlp_cfg_get_group(GKeyFile *kf, const char *group, const char *key,
                               const void *fallback, void *dst,
                               GError **error) DLP_NODISCARD;
-static void dlp_cfg_ptr_array_free(gpointer ptr);
 static void dlp_cfg_repo_free(gpointer ptr);
 
 static const struct dlp_cfg_setting dlp_cfg_repo_settings[] = {
@@ -79,7 +78,7 @@ static const struct dlp_cfg_setting dlp_cfg_repo_settings[] = {
       .required = false },
     { .key = "verify-keys",
       .get = dlp_cfg_get_files,
-      .free = dlp_cfg_ptr_array_free,
+      .free = dlp_mem_ptr_array_destroy,
       .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, verify_keys),
       .required = true },
     { .key = "cache",
@@ -488,8 +487,7 @@ static bool dlp_cfg_get_files(GKeyFile *kf, const char *group, const char *key,
     }
 
     if (i != (*files)->len) {
-        g_ptr_array_unref(*files);
-        *files = NULL;
+        dlp_mem_ptr_array_unref(files);
         return false;
     }
 
@@ -520,25 +518,6 @@ static bool dlp_cfg_get_group(GKeyFile *kf, const char *group, const char *key,
 
     *str = g_strdup(group);
     return *str != NULL;
-}
-
-/**
- * Decrease the refcount for a GPtrArray.
- *
- * This function is declared with a gpointer to avoid undefined behavior if
- * it's used as a GDestroyNotify function pointer.
- *
- * See:
- * - ISO/IEC 9899:201x 6.2.5 §28
- * - ISO/IEC 9899:201x 6.3.2.3 §8
- *
- * @param ptr GPtrArray to unref.
- */
-static void dlp_cfg_ptr_array_free(gpointer ptr)
-{
-    if (ptr != NULL) {
-        g_ptr_array_unref(ptr);
-    }
 }
 
 /**

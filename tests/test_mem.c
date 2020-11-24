@@ -80,6 +80,32 @@ static void test_mem_clear(void)
     dlp_mem_clear(&m, &test_mem_free);
 }
 
+static void test_mem_ptr_array_unref(void)
+{
+    GPtrArray *arr = NULL;
+
+    dlp_mem_ptr_array_unref(NULL);
+    dlp_mem_ptr_array_unref(&arr);
+
+    arr = g_ptr_array_new_full(0, g_free);
+    g_assert_nonnull(arr);
+    g_ptr_array_add(arr, g_strdup("foo"));
+    dlp_mem_ptr_array_unref(&arr);
+    g_assert_null(arr);
+}
+
+static void test_mem_ptr_array_destroy(void)
+{
+    GPtrArray *arr;
+
+    dlp_mem_ptr_array_destroy(NULL);
+
+    arr = g_ptr_array_new_full(0, g_free);
+    g_assert_nonnull(arr);
+    g_ptr_array_add(arr, g_strdup("foo"));
+    dlp_mem_ptr_array_destroy(arr);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -88,6 +114,8 @@ int main(int argc, char **argv)
     g_test_add_func("/mem/alloc/subprocess/large", test_mem_alloc_large);
     g_test_add_func("/mem/alloc", test_mem_alloc);
     g_test_add_func("/mem/clear", test_mem_clear);
+    g_test_add_func("/mem/ptr-array-unref", test_mem_ptr_array_unref);
+    g_test_add_func("/mem/ptr-array-destroy", test_mem_ptr_array_destroy);
 
     return g_test_run();
 }
