@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 
+#include <fcntl.h>
 #include <sys/stat.h>
 
 #include <glib.h>

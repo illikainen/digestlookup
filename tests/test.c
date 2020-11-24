@@ -550,4 +550,30 @@ gchar *__wrap_g_strdup(const gchar *str)
     return __real_g_strdup(str);
 }
 
+/* cppcheck-suppress unusedFunction */
+gboolean __wrap_g_key_file_load_from_data(GKeyFile *key_file, const gchar *data,
+                                          gsize length, GKeyFileFlags flags,
+                                          GError **error)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return GPOINTER_TO_INT(elt.value);
+    }
+    return __real_g_key_file_load_from_data(key_file, data, length, flags,
+                                            error);
+}
+
+/* cppcheck-suppress unusedFunction */
+gchar *__wrap_g_key_file_get_value(GKeyFile *key_file, const gchar *group_name,
+                                   const gchar *key, GError **error)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_g_key_file_get_value(key_file, group_name, key, error);
+}
+
 #endif /* TEST_WRAP */

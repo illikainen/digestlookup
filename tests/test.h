@@ -204,4 +204,18 @@ GResource *__real_g_static_resource_get_resource(GStaticResource *resource);
 gchar *__wrap_g_strdup(const gchar *str) G_GNUC_MALLOC;
 gchar *__real_g_strdup(const gchar *str) G_GNUC_MALLOC;
 
+gboolean __wrap_g_key_file_load_from_data(GKeyFile *key_file, const gchar *data,
+                                          gsize length, GKeyFileFlags flags,
+                                          GError **error);
+gboolean __real_g_key_file_load_from_data(GKeyFile *key_file, const gchar *data,
+                                          gsize length, GKeyFileFlags flags,
+                                          GError **error);
+
+gchar *__wrap_g_key_file_get_value(GKeyFile *key_file, const gchar *group_name,
+                                   const gchar *key,
+                                   GError **error) G_GNUC_MALLOC;
+gchar *__real_g_key_file_get_value(GKeyFile *key_file, const gchar *group_name,
+                                   const gchar *key,
+                                   GError **error) G_GNUC_MALLOC;
+
 #endif /* TEST_H */
