@@ -137,22 +137,18 @@ bool dlp_curl_init(CURL **easy, GError **error)
  * Free the memory associated with a curl easy handle.
  *
  * @param easy  Handle whose resources should be deallocated.
- * @return True on success and false on failure.
  */
-bool dlp_curl_free(CURL *easy)
+void dlp_curl_free(CURL **easy)
 {
     struct dlp_curl_private *priv;
 
-    g_return_val_if_fail(easy != NULL, false);
-
-    if (!dlp_curl_info(easy, CURLINFO_PRIVATE, &priv) || priv == NULL) {
-        curl_easy_cleanup(easy);
-        return false;
+    if (easy != NULL && *easy != NULL) {
+        if (dlp_curl_info(*easy, CURLINFO_PRIVATE, &priv) && priv != NULL) {
+            dlp_mem_free(&priv);
+        }
+        curl_easy_cleanup(*easy);
+        *easy = NULL;
     }
-
-    curl_easy_cleanup(easy);
-    dlp_mem_free(&priv);
-    return true;
 }
 
 /**

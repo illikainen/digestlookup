@@ -135,6 +135,21 @@ static void test_init(void **state)
     }
 }
 
+static void test_curl_free(void **state)
+{
+    CURL *curl = NULL;
+
+    (void)state;
+
+    dlp_curl_free(NULL);
+    dlp_curl_free(&curl);
+
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_non_null(curl);
+    dlp_curl_free(&curl);
+    assert_null(curl);
+}
+
 static void test_success(void **state)
 {
     gchar *url;
@@ -156,7 +171,7 @@ static void test_success(void **state)
     assert_true(dlp_curl_perform(curl, &err));
     assert_null(err);
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
 
     dlp_mem_free(&url);
 }
@@ -180,7 +195,7 @@ static void test_bad_ca(void **state)
 
     assert_false(dlp_curl_perform(curl, &err));
     TEST_ASSERT_ERR(err, CURLE_PEER_FAILED_VERIFICATION, "*self signed*");
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
 
     dlp_mem_free(&url);
 }
@@ -205,7 +220,7 @@ static void test_bad_fqdn(void **state)
 
     assert_false(dlp_curl_perform(curl, &err));
     TEST_ASSERT_ERR(err, CURLE_PEER_FAILED_VERIFICATION, "*subject name*");
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
 
     dlp_mem_free(&url);
 }
@@ -232,7 +247,7 @@ static void test_bad_pin(void **state)
 
     assert_false(dlp_curl_perform(curl, &err));
     TEST_ASSERT_ERR(err, CURLE_SSL_PINNEDPUBKEYNOTMATCH, "*pinned*");
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
 
     dlp_mem_free(&url);
 }
@@ -258,7 +273,7 @@ static void test_301(void **state)
 
     assert_false(dlp_curl_perform(curl, &err));
     TEST_ASSERT_ERR(err, CURLE_HTTP_RETURNED_ERROR, "*invalid status*");
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
 
     dlp_mem_free(&url);
 }
@@ -283,7 +298,7 @@ static void test_404(void **state)
 
     assert_false(dlp_curl_perform(curl, &err));
     TEST_ASSERT_ERR(err, CURLE_HTTP_RETURNED_ERROR, "*Not Found*");
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
 
     dlp_mem_free(&url);
 }
@@ -312,7 +327,7 @@ static void test_get_mtime(void **state)
     assert_null(err);
     assert_true(dlp_curl_info(curl[0], CURLINFO_FILETIME, &mtime));
     assert_true(mtime == 12345);
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
 
     dlp_mem_free(&url);
@@ -343,7 +358,7 @@ static void test_head_mtime(void **state)
     assert_null(err);
     assert_true(dlp_curl_info(curl[0], CURLINFO_FILETIME, &mtime));
     assert_true(mtime == 12345);
-    assert_true(dlp_curl_free(curl[0]));
+    dlp_curl_free(&curl[0]);
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "");
 
     dlp_mem_free(&url);
@@ -383,7 +398,7 @@ static void test_multi_success(void **state)
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
         TEST_ASSERT_FD_CONTENT(s->tmp[i].fd, "content-%zu", i);
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -423,7 +438,7 @@ static void test_multi_bad_ca(void **state)
     TEST_ASSERT_ERR(err, CURLE_PEER_FAILED_VERIFICATION, "*self signed*");
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -463,7 +478,7 @@ static void test_multi_bad_fqdn(void **state)
     TEST_ASSERT_ERR(err, CURLE_PEER_FAILED_VERIFICATION, "*subject name*");
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -504,7 +519,7 @@ static void test_multi_bad_pin(void **state)
     TEST_ASSERT_ERR(err, CURLE_SSL_PINNEDPUBKEYNOTMATCH, "*pinned*");
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -545,7 +560,7 @@ static void test_multi_301(void **state)
     TEST_ASSERT_ERR(err, CURLE_HTTP_RETURNED_ERROR, "*invalid status*");
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -586,7 +601,7 @@ static void test_multi_404(void **state)
     TEST_ASSERT_ERR(err, CURLE_HTTP_RETURNED_ERROR, "*Not Found*");
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -625,7 +640,7 @@ static void test_multi_reuse(void **state)
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
         TEST_ASSERT_FD_CONTENT(s->tmp[i].fd, "content-0-%zu", i);
         assert_int_equal(ftruncate(s->tmp[i].fd, 0), 0);
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
@@ -655,7 +670,7 @@ static void test_multi_reuse(void **state)
 
     for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
         TEST_ASSERT_FD_CONTENT(s->tmp[i].fd, "content-1-%zu", i);
-        assert_true(dlp_curl_free(curl[i]));
+        dlp_curl_free(&curl[i]);
     }
 }
 
@@ -680,6 +695,7 @@ int main(void)
     const struct CMUnitTest tests[] = {
         cmocka_unit_test(test_global_init),
         cmocka_unit_test(test_init),
+        cmocka_unit_test(test_curl_free),
         cmocka_unit_test_setup_teardown(test_success, setup, teardown),
         cmocka_unit_test_setup_teardown(test_bad_ca, setup, teardown),
         cmocka_unit_test_setup_teardown(test_bad_fqdn, setup, teardown),
