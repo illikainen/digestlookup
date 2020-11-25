@@ -14,7 +14,7 @@
 #include "dlp_mem.h"
 #include "dlp_str.h"
 
-static void dlp_log_init(void) DLP_CONSTRUCTOR;
+static void dlp_log_ctor(void) DLP_CONSTRUCTOR;
 static bool dlp_log_p(GLogLevelFlags level) DLP_NODISCARD;
 static bool dlp_log_stream(GLogLevelFlags level, FILE **fp) DLP_NODISCARD;
 static bool dlp_log_prefix(GLogLevelFlags level, bool color,
@@ -45,7 +45,7 @@ void dlp_log_set_verbosity(bool enable)
  * Set GLib log and message callbacks.
  */
 /* cppcheck-suppress unusedFunction */
-static void dlp_log_init(void)
+static void dlp_log_ctor(void)
 {
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     GLogLevelFlags lvl = (GLogLevelFlags)(G_LOG_LEVEL_MASK | G_LOG_FATAL_MASK);
