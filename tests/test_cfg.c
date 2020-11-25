@@ -253,6 +253,31 @@ static void test_cfg_read(gpointer data, gconstpointer user_data)
     g_assert_null(cfg);
     g_clear_error(&err);
 
+    /* Missing backend. */
+    str = g_strdup_printf("[foo]\n"
+                          "verify-keys = %s\n"
+                          "url = https://127.0.0.1\n"
+                          "tls-key = sha256://bar\n",
+                          path);
+    g_assert_true(g_file_set_contents(path, str, -1, NULL));
+    rv = dlp_cfg_read(path, &cfg, &err);
+    g_assert_error(err, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND);
+    g_assert_false(rv);
+    g_assert_null(cfg);
+    g_clear_error(&err);
+    dlp_mem_free(&str);
+
+    /* Invalid backend. */
+    g_assert_true(g_file_set_contents(path,
+                                      "[debian-stable]\n"
+                                      "backend = foobar\n",
+                                      -1, NULL));
+    rv = dlp_cfg_read(path, &cfg, &err);
+    g_assert_error(err, DLP_ERROR, DLP_BACKEND_ERROR_NOT_FOUND);
+    g_assert_false(rv);
+    g_assert_null(cfg);
+    g_clear_error(&err);
+
     /* Bad permission. */
     dir = g_path_get_dirname(defpath);
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */

@@ -44,6 +44,9 @@ static bool dlp_cfg_get_uint64(GKeyFile *kf, const char *group, const char *key,
 static bool dlp_cfg_get_files(GKeyFile *kf, const char *group, const char *key,
                               const void *fallback, void *dst,
                               GError **error) DLP_NODISCARD;
+static bool dlp_cfg_get_backend(GKeyFile *kf, const char *group,
+                                const char *key, const void *fallback,
+                                void *dst, GError **error) DLP_NODISCARD;
 static bool dlp_cfg_get_group(GKeyFile *kf, const char *group, const char *key,
                               const void *fallback, void *dst,
                               GError **error) DLP_NODISCARD;
@@ -56,8 +59,7 @@ static const struct dlp_cfg_setting dlp_cfg_repo_settings[] = {
       .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, name),
       .required = true },
     { .key = "backend",
-      .get = dlp_cfg_get_string,
-      .free = g_free,
+      .get = dlp_cfg_get_backend,
       .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, backend),
       .required = true },
     { .key = "url",
@@ -491,6 +493,42 @@ static bool dlp_cfg_get_files(GKeyFile *kf, const char *group, const char *key,
         return false;
     }
 
+    return true;
+}
+
+/**
+ * Retrieve an appropriate backend.
+ *
+ * @param kf        Config settings.
+ * @param group     Group to read from.
+ * @param key       Key to read.
+ * @param fallback  Unused.
+ * @param dst       Destination for the backend.
+ * @param error     Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_cfg_get_backend(GKeyFile *kf, const char *group,
+                                const char *key, const void *fallback,
+                                void *dst, GError **error)
+{
+    char *name;
+    struct dlp_backend **be = dst;
+
+    (void)fallback;
+
+    g_return_val_if_fail(kf != NULL && group != NULL, false);
+    g_return_val_if_fail(key != NULL && dst != NULL, false);
+
+    if (!dlp_cfg_get_string(kf, group, key, NULL, &name, error)) {
+        return false;
+    }
+
+    if (!dlp_backend_find(name, be, error)) {
+        dlp_mem_free(&name);
+        return false;
+    }
+
+    dlp_mem_free(&name);
     return true;
 }
 

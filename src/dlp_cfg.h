@@ -12,6 +12,7 @@
 #include <glib.h>
 
 #include "dlp.h"
+#include "dlp_backend.h"
 
 struct dlp_cfg;
 
@@ -21,7 +22,7 @@ enum dlp_cfg_error {
 
 struct dlp_cfg_repo {
     char *name;
-    char *backend;
+    struct dlp_backend *backend;
     char *url;
     char *tls_key;
     char *user_agent;

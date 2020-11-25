@@ -9,6 +9,7 @@
 #include <fcntl.h>
 
 #include "dlp_apt.h"
+#include "dlp_backend.h"
 #include "dlp_error.h"
 #include "dlp_fs.h"
 #include "dlp_mem.h"
@@ -84,6 +85,18 @@ static void prepare_fd(int fd, const char *buf)
     if (!dlp_fs_seek(fd, 0, SEEK_SET, NULL)) {
         g_error("seek");
     }
+}
+
+static void test_apt_ctor(gpointer data, gconstpointer user_data)
+{
+    struct dlp_backend *be;
+
+    (void)data;
+    (void)user_data;
+
+    g_assert_true(dlp_backend_find("apt", &be, NULL));
+    g_assert_nonnull(be);
+    g_assert_cmpstr(be->name, ==, "apt");
 }
 
 static void test_apt_release_free(gpointer data, gconstpointer user_data)
@@ -1144,6 +1157,8 @@ int main(int argc, char **argv)
 
     g_test_init(&argc, &argv, NULL);
 
+    g_test_add_vtable("/apt/ctor", sizeof(struct state), NULL, setup,
+                      test_apt_ctor, teardown);
     g_test_add_vtable("/apt/release/free", sizeof(struct state), NULL, setup,
                       test_apt_release_free, teardown);
     g_test_add_vtable("/apt/release/read/files", sizeof(struct state), NULL,

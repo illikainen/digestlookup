@@ -14,6 +14,7 @@
 
 #include <glib/gi18n.h>
 
+#include "dlp_backend.h"
 #include "dlp_error.h"
 #include "dlp_mem.h"
 
@@ -46,6 +47,8 @@ static bool dlp_apt_parse_files(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
+static void dlp_apt_ctor(void) DLP_CONSTRUCTOR;
+static void dlp_apt_dtor(void) DLP_DESTRUCTOR;
 
 static const GScannerConfig dlp_apt_config = {
     /*
@@ -673,5 +676,33 @@ static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error)
     if ((data = scan->user_data) != NULL) {
         g_set_error(data->error, DLP_ERROR, DLP_APT_ERROR_LEX, "%u:%u: %s",
                     scan->line, scan->position, msg);
+    }
+}
+
+/**
+ * Constructor for the APT backend.
+ */
+/* cppcheck-suppress unusedFunction */
+static void dlp_apt_ctor(void)
+{
+    static struct dlp_backend *be;
+
+    be = dlp_mem_alloc(sizeof(*be));
+    be->name = "apt";
+
+    dlp_backend_add(be);
+}
+
+/**
+ * Destructor for the APT backend.
+ */
+/* cppcheck-suppress unusedFunction */
+static void dlp_apt_dtor(void)
+{
+    static struct dlp_backend *be;
+
+    if (dlp_backend_find("apt", &be, NULL)) {
+        dlp_backend_remove(be);
+        dlp_mem_free(&be);
     }
 }
