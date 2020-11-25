@@ -21,7 +21,7 @@ enum dlp_cfg_error {
 
 struct dlp_cfg_repo {
     char *name;
-    char *type;
+    char *backend;
     char *url;
     char *tls_key;
     char *user_agent;

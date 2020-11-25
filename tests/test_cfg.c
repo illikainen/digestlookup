@@ -213,7 +213,7 @@ static void test_cfg_read(gpointer data, gconstpointer user_data)
                                       "verify-keys = "
                                       "resource:///dlp/keys/debian/"
                                       "buster-automatic.asc\n"
-                                      "type = apt\n",
+                                      "backend = apt\n",
                                       -1, NULL));
     rv = dlp_cfg_read(path, &cfg, &err);
     g_assert_no_error(err);
@@ -232,7 +232,7 @@ static void test_cfg_read(gpointer data, gconstpointer user_data)
                                       "verify-keys = "
                                       "resource:///dlp/keys/debian/"
                                       "buster-automatic.asc\n"
-                                      "type = apt\n",
+                                      "backend = apt\n",
                                       -1, NULL));
     rv = dlp_cfg_read(path, &cfg, &err);
     g_assert_error(err, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND);
@@ -245,7 +245,7 @@ static void test_cfg_read(gpointer data, gconstpointer user_data)
                                       "[foo]\n"
                                       "url = https://127.0.0.1\n"
                                       "tls-key = sha256://bar\n"
-                                      "type = apt\n",
+                                      "backend = apt\n",
                                       -1, NULL));
     rv = dlp_cfg_read(path, &cfg, &err);
     g_assert_error(err, G_KEY_FILE_ERROR, G_KEY_FILE_ERROR_KEY_NOT_FOUND);
