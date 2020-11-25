@@ -34,6 +34,19 @@ struct dlp_apt_symbol {
     bool seen;
 };
 
+static void dlp_apt_sources_free_1(gpointer ptr);
+static void dlp_apt_files_free(GList **files);
+static void dlp_apt_symbols_add(GScanner *scan, struct dlp_apt_symbol *syms);
+static void dlp_apt_symbols_remove(GScanner *scan, struct dlp_apt_symbol *syms);
+static bool dlp_apt_symbols_reset(struct dlp_apt_symbol *syms,
+                                  GError **error) DLP_NODISCARD;
+static bool dlp_apt_symbols_read(GScanner *scan, GError **error) DLP_NODISCARD;
+static bool dlp_apt_parse_package(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_files(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
+static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
+
 static const GScannerConfig dlp_apt_config = {
     /*
      * Valid characters for field names as specified in section 5.1 of the
@@ -51,19 +64,6 @@ static const GScannerConfig dlp_apt_config = {
     .scan_identifier = 1,
     .scan_symbols = 1,
 };
-
-static void dlp_apt_sources_free_1(gpointer ptr);
-static void dlp_apt_files_free(GList **files);
-static void dlp_apt_symbols_add(GScanner *scan, struct dlp_apt_symbol *syms);
-static void dlp_apt_symbols_remove(GScanner *scan, struct dlp_apt_symbol *syms);
-static bool dlp_apt_symbols_reset(struct dlp_apt_symbol *syms,
-                                  GError **error) DLP_NODISCARD;
-static bool dlp_apt_symbols_read(GScanner *scan, GError **error) DLP_NODISCARD;
-static bool dlp_apt_parse_package(GScanner *scan, void *dst) DLP_NODISCARD;
-static bool dlp_apt_parse_files(GScanner *scan, void *dst) DLP_NODISCARD;
-static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
-static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
-static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
 
 /**
  * Read an APT release file.
