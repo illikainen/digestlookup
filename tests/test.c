@@ -376,6 +376,18 @@ gpgme_error_t __wrap_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd)
 }
 
 /* cppcheck-suppress unusedFunction */
+gpgme_error_t __wrap_gpgme_data_new_from_mem(gpgme_data_t *dh, const char *buf,
+                                             size_t size, int copy)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return *(gpgme_error_t *)elt.value;
+    }
+    return __real_gpgme_data_new_from_mem(dh, buf, size, copy);
+}
+
+/* cppcheck-suppress unusedFunction */
 gpgme_engine_info_t __wrap_gpgme_ctx_get_engine_info(gpgme_ctx_t ctx)
 {
     struct test_wrap elt = { 0 };

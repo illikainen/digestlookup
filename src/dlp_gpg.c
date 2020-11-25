@@ -18,6 +18,7 @@
 #include "dlp_fs.h"
 #include "dlp_mem.h"
 #include "dlp_overflow.h"
+#include "dlp_resource.h"
 
 struct dlp_gpg {
     gpgme_ctx_t ctx;
@@ -43,6 +44,9 @@ static bool dlp_gpg_get_exec(struct dlp_gpg *gpg, const char **path,
                              GError **error) DLP_NODISCARD;
 static bool dlp_gpg_data_from_fd(int fd, gpgme_data_t *data,
                                  GError **error) DLP_NODISCARD;
+static bool dlp_gpg_data_from_mem(const char *buf, size_t size,
+                                  gpgme_data_t *data,
+                                  GError **error) DLP_NODISCARD;
 static void dlp_gpg_data_release(gpgme_data_t *data);
 static bool dlp_gpg_ensure(gpgme_error_t err, GError **error) DLP_NODISCARD;
 static void dlp_gpg_set_error(gpgme_error_t err, GError **error);
@@ -192,17 +196,29 @@ bool dlp_gpg_import_key(struct dlp_gpg *gpg, const char *path,
     gpgme_data_t data = NULL;
     GList *fpr = NULL;
     GList *fprs = NULL;
+    void *buf = NULL;
+    gsize size = 0;
     int fd = -1;
     bool success = false;
 
     g_return_val_if_fail(gpg != NULL && path != NULL, false);
 
-    if (!dlp_fs_open(path, O_RDONLY, S_IRUSR, &fd, error)) {
-        goto out;
-    }
+    if (dlp_resource_p(path)) {
+        if (!dlp_resource_data(path, &buf, &size, error)) {
+            goto out;
+        }
 
-    if (!dlp_gpg_data_from_fd(fd, &data, error)) {
-        goto out;
+        if (!dlp_gpg_data_from_mem(buf, size, &data, error)) {
+            goto out;
+        }
+    } else {
+        if (!dlp_fs_open(path, O_RDONLY, S_IRUSR, &fd, error)) {
+            goto out;
+        }
+
+        if (!dlp_gpg_data_from_fd(fd, &data, error)) {
+            goto out;
+        }
     }
 
     err = gpgme_op_import(gpg->ctx, data);
@@ -252,6 +268,7 @@ bool dlp_gpg_import_key(struct dlp_gpg *gpg, const char *path,
 out:
     g_list_free_full(fprs, g_free);
     dlp_gpg_data_release(&data);
+    dlp_mem_free(&buf);
 
     return MIN(success, dlp_fs_close(&fd, success ? error : NULL));
 }
@@ -765,6 +782,32 @@ static bool dlp_gpg_data_from_fd(int fd, gpgme_data_t *data, GError **error)
     g_return_val_if_fail(fd >= 0 && data != NULL, false);
 
     err = gpgme_data_new_from_fd(data, fd);
+    if (!dlp_gpg_ensure(err, error)) {
+        *data = NULL;
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Helper around gpgme_data_new_from_mem().
+ *
+ * @param buf   Buffer for the data object.  It is copied by GPGME so it may be
+ *              freed before the data object is released.
+ * @param size  Size of the buffer.
+ * @param data  Newly created data object, or NULL on failure.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_gpg_data_from_mem(const char *buf, size_t size,
+                                  gpgme_data_t *data, GError **error)
+{
+    gpgme_error_t err;
+
+    g_return_val_if_fail(buf != NULL && size > 0 && data != NULL, false);
+
+    err = gpgme_data_new_from_mem(data, buf, size, 1);
     if (!dlp_gpg_ensure(err, error)) {
         *data = NULL;
         return false;

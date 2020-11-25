@@ -142,6 +142,11 @@ int __real_gpgme_strerror_r(gpg_error_t err, char *buf, size_t buflen);
 gpgme_error_t __wrap_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd);
 gpgme_error_t __real_gpgme_data_new_from_fd(gpgme_data_t *dh, int fd);
 
+gpgme_error_t __wrap_gpgme_data_new_from_mem(gpgme_data_t *dh, const char *buf,
+                                             size_t size, int copy);
+gpgme_error_t __real_gpgme_data_new_from_mem(gpgme_data_t *dh, const char *buf,
+                                             size_t size, int copy);
+
 gpgme_engine_info_t __wrap_gpgme_ctx_get_engine_info(gpgme_ctx_t ctx);
 gpgme_engine_info_t __real_gpgme_ctx_get_engine_info(gpgme_ctx_t ctx);
 

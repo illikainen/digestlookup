@@ -339,12 +339,40 @@ static void test_gpg_import_key(gpointer data, gconstpointer user_data)
     g_assert_error(err, DLP_ERROR, GPG_ERR_EINVAL);
     g_clear_error(&err);
 
+    /*
+     * Import from resource.
+     */
+    g_assert_true(dlp_gpg_import_key(s->gpg,
+                                     "resource:///dlp/keys/debian/"
+                                     "buster-automatic.asc",
+                                     trust, &err));
+    g_assert_no_error(err);
+
+    /*
+     * Import from missing resource.
+     */
+    g_assert_false(dlp_gpg_import_key(s->gpg, "resource:///foo", trust, &err));
+    g_assert_error(err, G_RESOURCE_ERROR, G_RESOURCE_ERROR_NOT_FOUND);
+    g_clear_error(&err);
+
     if (test_wrap_p()) {
         /* gpgme_data_new_from_fd() failure */
         g_assert_true(dlp_gpg_init(&gpg, NULL));
         e = 123;
         test_wrap_push(gpgme_data_new_from_fd, true, &e);
         g_assert_false(dlp_gpg_import_key(gpg, s->rsa4096.pub, trust, &err));
+        g_assert_error(err, DLP_ERROR, 123);
+        g_clear_error(&err);
+        g_assert_true(dlp_gpg_free(&gpg, NULL));
+
+        /* gpgme_data_new_from_mem() failure */
+        g_assert_true(dlp_gpg_init(&gpg, NULL));
+        e = 123;
+        test_wrap_push(gpgme_data_new_from_mem, true, &e);
+        g_assert_false(dlp_gpg_import_key(gpg,
+                                          "resource:///dlp/keys/debian/"
+                                          "buster-automatic.asc",
+                                          trust, &err));
         g_assert_error(err, DLP_ERROR, 123);
         g_clear_error(&err);
         g_assert_true(dlp_gpg_free(&gpg, NULL));
