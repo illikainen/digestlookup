@@ -35,9 +35,11 @@ static int group_setup(void **state)
 
     s->host = "127.0.0.1";
     s->port = 1234;
-    s->sha256 = "sha256//hQCB8c6ZQftPpThbwMC0MDL1Jye+3IZnzqfobXbCFXU=";
-    s->key = g_build_filename(PROJECT_DIR, "tests", "data", "key.pem", NULL);
-    s->cert = g_build_filename(PROJECT_DIR, "tests", "data", "cert.pem", NULL);
+    s->sha256 = "sha256//hiC2YHsimS6rJ/RZ1OM3rbt1DFATF/o6fCDtm59VBQ8=";
+    s->key = g_build_filename(PROJECT_DIR, "tests", "data", "tls", "key.pem",
+                              NULL);
+    s->cert = g_build_filename(PROJECT_DIR, "tests", "data", "tls", "cert.pem",
+                               NULL);
 
     if (!dlp_mhd_init(&s->mhd) ||
         !dlp_mhd_start(s->mhd, s->host, s->port, s->key, s->cert, NULL)) {
