@@ -17,6 +17,7 @@
 #include "config.h"
 #include "dlp_error.h"
 #include "dlp_mem.h"
+#include "dlp_overflow.h"
 
 static bool dlp_fs_user_dir(const char *base, char **path,
                             GError **error) DLP_NODISCARD;
@@ -153,6 +154,52 @@ bool dlp_fs_close(int *fd, GError **error)
             return false;
         }
         *fd = -1;
+    }
+
+    return true;
+}
+
+/**
+ * Read from a file descriptor.
+ *
+ * This function tries to read a specified number of bytes while recovering
+ * from EINTR.  It does not try to recover from partial reads (arithmetic on
+ * void pointers is undefined behavior); instead it is considered a success if
+ * the number of bytes read is in the interval [0, len].
+ *
+ * @param fd    File descriptor to read.
+ * @param buf   Destination buffer.
+ * @param len   Number of bytes to read.
+ * @param res   Number of bytes that were read.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_read(int fd, void *buf, size_t len, size_t *res, GError **error)
+{
+    ssize_t n;
+
+    g_return_val_if_fail(fd >= 0 && buf != NULL && res != NULL, false);
+    *res = 0;
+
+    if (len == 0 || len > SSIZE_MAX) {
+        g_set_error(error, DLP_ERROR, ERANGE, "%s", g_strerror(ERANGE));
+        return false;
+    }
+
+    do {
+        errno = 0;
+        if ((n = read(fd, buf, len)) < 0) {
+            if (errno != EINTR) {
+                g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+                return false;
+            }
+        }
+    } while (n < 0);
+
+    if (dlp_overflow_add(n, 0, res) || *res > len) {
+        *res = 0;
+        g_set_error(error, DLP_ERROR, ERANGE, "%s", g_strerror(ERANGE));
+        return false;
     }
 
     return true;
