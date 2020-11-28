@@ -55,9 +55,8 @@ bool dlp_fs_walk(const char *path, dlp_fs_walk_cb cb, void *data,
         return false;
     }
 
-    errno = 0;
-    if (fstat(fd, &s) != 0) {
-        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+    if (!dlp_fs_fstat(fd, &s, error)) {
+        g_prefix_error(error, "%s: ", path);
         DLP_DISCARD(dlp_fs_close(&fd, NULL));
         return false;
     }
@@ -95,9 +94,8 @@ bool dlp_fs_openat(int dfd, const char *path, int flags, mode_t mode, int *fd,
         return false;
     }
 
-    errno = 0;
-    if (fstat(*fd, &s) != 0) {
-        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+    if (!dlp_fs_fstat(*fd, &s, error)) {
+        g_prefix_error(error, "%s: ", path);
         DLP_DISCARD(dlp_fs_close(fd, NULL));
         return false;
     }
@@ -441,6 +439,46 @@ bool dlp_fs_mkstemp(int *fd, GError **error)
 }
 
 /**
+ * Retrieve the status for a file.
+ *
+ * @param path  Path to a file to get the status for.
+ * @param s     Status structure.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_stat(const char *path, struct stat *s, GError **error)
+{
+    g_return_val_if_fail(path != NULL && s != NULL, false);
+
+    errno = 0;
+    if (stat(path, s) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * Retrieve the status for a file descriptor.
+ *
+ * @param fd    File descriptor to get the status for.
+ * @param s     Status structure.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_fstat(int fd, struct stat *s, GError **error)
+{
+    g_return_val_if_fail(fd >= 0 && s != NULL, false);
+
+    errno = 0;
+    if (fstat(fd, s) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+        return false;
+    }
+    return true;
+}
+
+/**
  * Check that a path looks reasonable.
  *
  * @param path       Path to check.
@@ -453,15 +491,16 @@ bool dlp_fs_check_path(const char *path, mode_t type, bool must_exist,
                        GError **error)
 {
     struct stat s;
+    GError *err = NULL;
 
     g_return_val_if_fail(path != NULL, false);
 
-    errno = 0;
-    if (stat(path, &s) != 0) {
-        if (errno == ENOENT && !must_exist) {
+    if (!dlp_fs_stat(path, &s, &err)) {
+        if (!must_exist && g_error_matches(err, DLP_ERROR, ENOENT)) {
+            g_clear_error(&err);
             return true;
         }
-        g_set_error(error, DLP_ERROR, errno, "%s: %s", path, g_strerror(errno));
+        g_propagate_error(error, err);
         return false;
     }
 

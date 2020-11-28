@@ -47,6 +47,9 @@ bool dlp_fs_mkdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_rmdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdtemp(char **path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkstemp(int *fd, GError **error) DLP_NODISCARD;
+bool dlp_fs_stat(const char *path, struct stat *s,
+                 GError **error) DLP_NODISCARD;
+bool dlp_fs_fstat(int fd, struct stat *s, GError **error) DLP_NODISCARD;
 bool dlp_fs_check_path(const char *path, mode_t type, bool must_exist,
                        GError **error) DLP_NODISCARD;
 bool dlp_fs_check_stat(const struct stat *s, mode_t type,

@@ -810,6 +810,89 @@ static void test_write(void **state)
     }
 }
 
+static void test_stat(void **state)
+{
+    char *path;
+    bool rv;
+    errno_t e;
+    struct stat s;
+    GError *err = NULL;
+
+    (void)state;
+
+    assert_true(dlp_fs_cache_path(&path, NULL, "test-stat", NULL));
+
+    /*
+     * Missing file.
+     */
+    rv = dlp_fs_stat(path, &s, &err);
+    TEST_ASSERT_ERR(err, ENOENT, "*");
+    assert_false(rv);
+
+    /*
+     * Success.
+     */
+    assert_true(g_file_set_contents(path, "foo", -1, NULL));
+    rv = dlp_fs_stat(path, &s, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_int_equal(s.st_size, 3);
+
+    if (test_wrap_p()) {
+        /*
+         * ENOTDIR.
+         */
+        e = ENOTDIR;
+        test_wrap_push(__xstat64, true, &e);
+        rv = dlp_fs_stat(path, &s, &err);
+        TEST_ASSERT_ERR(err, ENOTDIR, "*");
+        assert_false(rv);
+    }
+
+    dlp_mem_free(&path);
+}
+
+static void test_fstat(void **state)
+{
+    int fd;
+    bool rv;
+    size_t size;
+    struct stat s;
+    errno_t e;
+    GError *err = NULL;
+
+    (void)state;
+
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+
+    /*
+     * Success.
+     */
+    rv = dlp_fs_fstat(fd, &s, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_int_equal(s.st_size, 0);
+
+    assert_true(dlp_fs_write(fd, "foo", 3, &size, NULL));
+    rv = dlp_fs_fstat(fd, &s, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_int_equal(s.st_size, 3);
+
+    if (test_wrap_p()) {
+        /*
+         * EBADF.
+         */
+        e = EBADF;
+        test_wrap_push(__fxstat64, true, &e);
+        rv = dlp_fs_fstat(fd, &s, &err);
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_false(rv);
+    }
+
+    assert_true(dlp_fs_close(&fd, NULL));
+}
+
 static void test_seek(void **state)
 {
     int fd;
@@ -1098,6 +1181,8 @@ int main(void)
         cmocka_unit_test(test_close),
         cmocka_unit_test(test_read),
         cmocka_unit_test(test_write),
+        cmocka_unit_test(test_stat),
+        cmocka_unit_test(test_fstat),
         cmocka_unit_test(test_seek),
         cmocka_unit_test(test_truncate),
         cmocka_unit_test(test_mkdir),
