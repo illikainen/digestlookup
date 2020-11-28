@@ -43,6 +43,7 @@ bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res,
 bool dlp_fs_seek(int fd, off_t offset, int whence,
                  GError **error) DLP_NODISCARD;
 bool dlp_fs_truncate(int fd, off_t len, GError **error) DLP_NODISCARD;
+bool dlp_fs_size(int fd, size_t *size, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_rmdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdtemp(char **path, GError **error) DLP_NODISCARD;

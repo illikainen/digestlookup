@@ -309,6 +309,44 @@ bool dlp_fs_truncate(int fd, off_t len, GError **error)
 }
 
 /**
+ * Retrieve the size of a file.
+ *
+ * @param fd    File descriptor to retrieve the size of.
+ * @param size  File size.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_size(int fd, size_t *size, GError **error)
+{
+    struct stat s;
+
+    g_return_val_if_fail(fd >= 0 && size != NULL, false);
+    *size = 0;
+
+    errno = 0;
+    if (fsync(fd) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+        return false;
+    }
+
+    if (!dlp_fs_fstat(fd, &s, error)) {
+        return false;
+    }
+
+    if (!dlp_fs_check_stat(&s, DLP_FS_REG, error)) {
+        return false;
+    }
+
+    if (dlp_overflow_add(s.st_size, 0, size)) {
+        *size = 0;
+        g_set_error(error, DLP_ERROR, EOVERFLOW, "%s", g_strerror(EOVERFLOW));
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Recursively create a directory if it doesn't exist.
  *
  * @param path  Directory to create.

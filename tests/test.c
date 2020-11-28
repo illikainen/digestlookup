@@ -212,6 +212,22 @@ ssize_t __wrap_write(int fd, void *buf, size_t len)
 }
 
 /* cppcheck-suppress unusedFunction */
+int __wrap_fsync(int fd)
+{
+    gint32 rv;
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno) &&
+            g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
+            return rv;
+        }
+        g_error("unhandled spec");
+    }
+    return __real_fsync(fd);
+}
+
+/* cppcheck-suppress unusedFunction */
 int __wrap___xstat64(int ver, const char *path, struct stat *s)
 {
     struct test_wrap elt = { 0 };
@@ -226,11 +242,22 @@ int __wrap___xstat64(int ver, const char *path, struct stat *s)
 /* cppcheck-suppress unusedFunction */
 int __wrap___fxstat64(int ver, int fd, struct stat *s)
 {
+    gint32 tmp;
+    gint32 rv;
     struct test_wrap elt = { 0 };
 
     if (test_wrap_pop(&elt) && elt.wrap) {
-        errno = *(errno_t *)elt.value;
-        return -1;
+        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno) &&
+            g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
+            return rv;
+        }
+
+        rv = __real___fxstat64(ver, fd, s);
+        if (g_variant_dict_lookup(elt.value, "st_size", "i", &tmp)) {
+            s->st_size = tmp;
+        }
+
+        return rv;
     }
     return __real___fxstat64(ver, fd, s);
 }
