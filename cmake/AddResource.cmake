@@ -48,7 +48,6 @@ function(add_resource path)
             DEPENDS ${deps}
             VERBATIM
         )
-        set_source_files_properties("${output}" PROPERTIES GENERATED TRUE)
         list(APPEND files "${output}")
     endforeach()
 
