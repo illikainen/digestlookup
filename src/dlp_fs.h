@@ -38,6 +38,8 @@ bool dlp_fs_open(const char *path, int flags, mode_t mode, int *fd,
 bool dlp_fs_close(int *fd, GError **error) DLP_NODISCARD;
 bool dlp_fs_read(int fd, void *buf, size_t len, size_t *res,
                  GError **error) DLP_NODISCARD;
+bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res,
+                  GError **error) DLP_NODISCARD;
 bool dlp_fs_seek(int fd, off_t offset, int whence,
                  GError **error) DLP_NODISCARD;
 bool dlp_fs_truncate(int fd, off_t len, GError **error) DLP_NODISCARD;

@@ -87,6 +87,9 @@ int __real_close(int fd);
 ssize_t __wrap_read(int fd, void *buf, size_t len);
 ssize_t __real_read(int fd, void *buf, size_t len);
 
+ssize_t __wrap_write(int fd, void *buf, size_t len);
+ssize_t __real_write(int fd, void *buf, size_t len);
+
 int __wrap_unlink(const char *path);
 int __real_unlink(const char *path);
 

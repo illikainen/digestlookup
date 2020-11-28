@@ -206,6 +206,68 @@ bool dlp_fs_read(int fd, void *buf, size_t len, size_t *res, GError **error)
 }
 
 /**
+ * Write to a file descriptor.
+ *
+ * This function tries to write a specified number of bytes while recovering
+ * from EINTR.  It does not try to recover from partial writes; instead it
+ * is considered a success if the number of bytes written is in the interval
+ * [1, len].
+ *
+ * @param fd    File descriptor to write to.
+ * @param buf   Source buffer.
+ * @param len   Number of bytes to write.
+ * @param res   Number of bytes that were written.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res, GError **error)
+{
+    ssize_t n;
+
+    g_return_val_if_fail(fd >= 0 && buf != NULL && res != NULL, false);
+    *res = 0;
+
+    if (len == 0 || len > SSIZE_MAX) {
+        g_set_error(error, DLP_ERROR, ERANGE, "%s", g_strerror(ERANGE));
+        return false;
+    }
+
+    do {
+        /*
+         * POSIX.1-2017 says the following on write():
+         *
+         * > Where this volume of POSIX.1-2017 requires -1 to be returned and
+         * > errno set to [EAGAIN], most historical implementations return zero
+         * > (with the O_NDELAY flag set, which is the historical predecessor
+         * > of O_NONBLOCK, but is not itself in this volume of POSIX.1-2017).
+         *
+         * Since write() can't receive EOF and since this function doesn't
+         * handle EAGAIN, a return value of 0 is considered a failure.
+         */
+        errno = 0;
+        if ((n = write(fd, buf, len)) <= 0) {
+            if (n == 0) {
+                g_set_error(error, DLP_ERROR, EAGAIN, "%s", g_strerror(EAGAIN));
+                return false;
+            }
+
+            if (errno != EINTR) {
+                g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+                return false;
+            }
+        }
+    } while (n <= 0);
+
+    if (dlp_overflow_add(n, 0, res) || *res > len) {
+        *res = 0;
+        g_set_error(error, DLP_ERROR, ERANGE, "%s", g_strerror(ERANGE));
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Move the position of a file descriptor.
  *
  * @param fd     File descriptor to reposition.

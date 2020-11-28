@@ -187,6 +187,31 @@ ssize_t __wrap_read(int fd, void *buf, size_t len)
 }
 
 /* cppcheck-suppress unusedFunction */
+ssize_t __wrap_write(int fd, void *buf, size_t len)
+{
+    gint32 rv;
+    guint32 ln;
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno) &&
+            g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
+            return rv;
+        }
+
+        if (g_variant_dict_lookup(elt.value, "len", "u", &ln)) {
+            if (ln > 0) {
+                return __real_write(fd, buf, ln);
+            }
+            return ln;
+        }
+
+        g_error("unhandled spec");
+    }
+    return __real_write(fd, buf, len);
+}
+
+/* cppcheck-suppress unusedFunction */
 int __wrap___xstat64(int ver, const char *path, struct stat *s)
 {
     struct test_wrap elt = { 0 };

@@ -696,6 +696,120 @@ static void test_read(void **state)
     }
 }
 
+static void test_write(void **state)
+{
+    int fd;
+    size_t size;
+    GError *err = NULL;
+    char buf[BUFSIZ * 32] = { 0 };
+
+    (void)state;
+
+    /*
+     * Bad size.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_false(dlp_fs_write(fd, buf, 0, &size, &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_int_equal(size, 0);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_false(dlp_fs_write(fd, buf, MAX(SSIZE_MAX, SIZE_MAX), &size, &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_int_equal(size, 0);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Small write.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write(fd, "foo", 3, &size, &err));
+    assert_null(err);
+    assert_int_equal(size, 3);
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    assert_true(dlp_fs_read(fd, buf, sizeof(buf), &size, NULL));
+    assert_int_equal(size, 3);
+    assert_memory_equal(buf, "foo", 3);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    if (test_wrap_p()) {
+        GVariantDict *v;
+
+        /*
+         * EINTR.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EINTR);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(write, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write(fd, "foo", 3, &size, &err));
+        assert_null(err);
+        assert_int_equal(size, 3);
+        assert_memory_equal(buf, "foo", 3);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * EBADF.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(write, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write(fd, "foo", 3, &size, &err));
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_int_equal(size, 0);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Partial write.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 3);
+        test_wrap_push(write, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write(fd, "foobar", 6, &size, &err));
+        assert_null(err);
+        assert_int_equal(size, 3);
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        assert_true(dlp_fs_read(fd, buf, sizeof(buf), &size, NULL));
+        assert_int_equal(size, 3);
+        assert_memory_equal(buf, "foo", size);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Invalid 0 return value.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 0);
+        test_wrap_push(write, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write(fd, buf, 3, &size, &err));
+        TEST_ASSERT_ERR(err, EAGAIN, "*");
+        assert_int_equal(size, 0);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Invalid large return value.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 6);
+        test_wrap_push(write, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write(fd, buf, 3, &size, &err));
+        TEST_ASSERT_ERR(err, ERANGE, "*");
+        assert_int_equal(size, 0);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+    }
+}
+
 static void test_seek(void **state)
 {
     int fd;
@@ -983,6 +1097,7 @@ int main(void)
         cmocka_unit_test(test_open),
         cmocka_unit_test(test_close),
         cmocka_unit_test(test_read),
+        cmocka_unit_test(test_write),
         cmocka_unit_test(test_seek),
         cmocka_unit_test(test_truncate),
         cmocka_unit_test(test_mkdir),
