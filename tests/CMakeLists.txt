@@ -41,17 +41,17 @@ add_pkg_config(TARGET test_obj SCOPE INTERFACE PKG libmicrohttpd REQUIRED)
 #
 # Tests.
 #
-set(env
-    G_DEBUG=fatal-warnings
-    G_MESSAGES_DEBUG=all
-    LSAN_OPTIONS=report_objects=1)
-
 foreach(test ${tests})
     string(REGEX REPLACE "/" "-" test_bin ${test})
     string(REGEX REPLACE "\.c$" "" test_bin ${test_bin})
 
     add_executable(${test_bin} ${test})
     add_test(${test_bin} ${test_bin})
+    set(env
+        G_DEBUG=fatal-warnings
+        G_MESSAGES_DEBUG=all
+        LLVM_PROFILE_FILE=${test_bin}-%m%c.profraw
+        LSAN_OPTIONS=report_objects=1)
     set_tests_properties(${test_bin} PROPERTIES ENVIRONMENT "${env}")
 
     # See:
