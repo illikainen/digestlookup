@@ -380,7 +380,7 @@ bool dlp_fs_seek(int fd, off_t offset, int whence, GError **error)
     g_return_val_if_fail(fd >= 0, false);
 
     errno = 0;
-    if (lseek(fd, offset, whence) == -1) {
+    if (lseek(fd, offset, whence) == (off_t)-1) {
         g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
         return false;
     }
