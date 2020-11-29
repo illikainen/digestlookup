@@ -204,12 +204,67 @@ bool dlp_fs_read(int fd, void *buf, size_t len, size_t *res, GError **error)
 }
 
 /**
+ * Read from a file descriptor.
+ *
+ * Unlike dlp_fs_read(), this function reads the specified number of bytes from
+ * a file descriptor and returns an error if that was not possible.  It is
+ * considered an erroneous condition if EOF is encountered before the number of
+ * bytes have been read; so it is the callers responsibility to make sure that
+ * the length is at most equal to the available number of bytes in the file
+ * descriptor.
+ *
+ * Don't call this function directly; use the dlp_fs_read_bytes() generic
+ * macro.
+ *
+ * @param fd    File descriptor to read.
+ * @param type  Type of the buffer provided by the dlp_fs_read_bytes() macro.
+ * @param buf   Destination buffer.
+ * @param len   Number of bytes to read.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_read_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf, size_t len,
+                            GError **error)
+{
+    size_t n;
+
+    g_return_val_if_fail(fd >= 0 && buf != NULL, false);
+
+    /* ISO/IEC 9899:201x 6.5.3.4 §4. */
+    _Static_assert(sizeof(char) == sizeof(uint8_t), "unsupported type");
+
+    do {
+        if (!dlp_fs_read(fd, buf, len, &n, error)) {
+            return false;
+        }
+
+        if (type == DLP_FS_PTR_CHAR) {
+            buf = ((char *)buf) + n;
+        } else if (type == DLP_FS_PTR_U8) {
+            buf = ((uint8_t *)buf) + n;
+        } else {
+            g_set_error(error, DLP_ERROR, EINVAL, "%s", g_strerror(EINVAL));
+            return false;
+        }
+
+        len -= n;
+    } while (len != 0 && n != 0);
+
+    if (len != 0) {
+        g_set_error(error, DLP_ERROR, EBADE, "%s", g_strerror(EBADE));
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Write to a file descriptor.
  *
  * This function tries to write a specified number of bytes while recovering
- * from EINTR.  It does not try to recover from partial writes; instead it
- * is considered a success if the number of bytes written is in the interval
- * [1, len].
+ * from EINTR.  It does not try to recover from partial writes (arithmetic on
+ * void pointers is undefined behavior); instead it is considered a success if
+ * the number of bytes written is in the interval [1, len].
  *
  * @param fd    File descriptor to write to.
  * @param buf   Source buffer.
@@ -261,6 +316,52 @@ bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res, GError **error)
         g_set_error(error, DLP_ERROR, ERANGE, "%s", g_strerror(ERANGE));
         return false;
     }
+
+    return true;
+}
+
+/**
+ * Write to a file descriptor.
+ *
+ * Unlike dlp_fs_write(), this function writes the specified number of bytes to
+ * a file descriptor and returns an error if that was not possible.
+ *
+ * Don't call this function directly; use the dlp_fs_write_bytes() generic
+ * macro.
+ *
+ * @param fd    File descriptor to write to.
+ * @param type  Type of the buffer provided by the dlp_fs_write_bytes() macro.
+ * @param buf   Source buffer.
+ * @param len   Number of bytes to write.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf,
+                             size_t len, GError **error)
+{
+    size_t n;
+
+    g_return_val_if_fail(fd >= 0 && buf != NULL, false);
+
+    /* ISO/IEC 9899:201x 6.5.3.4 §4. */
+    _Static_assert(sizeof(char) == sizeof(uint8_t), "unsupported type");
+
+    do {
+        if (!dlp_fs_write(fd, buf, len, &n, error)) {
+            return false;
+        }
+
+        if (type == DLP_FS_PTR_CHAR) {
+            buf = ((char *)buf) + n;
+        } else if (type == DLP_FS_PTR_U8) {
+            buf = ((uint8_t *)buf) + n;
+        } else {
+            g_set_error(error, DLP_ERROR, EINVAL, "%s", g_strerror(EINVAL));
+            return false;
+        }
+
+        len -= n;
+    } while (len != 0);
 
     return true;
 }

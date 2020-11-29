@@ -709,6 +709,258 @@ static void test_read(void **state)
     }
 }
 
+static void test_read_bytes_char(void **state)
+{
+    char buf[BUFSIZ * 32];
+    int fd;
+    size_t i;
+    GError *err = NULL;
+
+    (void)state;
+
+    /*
+     * Bad size.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+    assert_false(dlp_fs_read_bytes(fd, buf, 0, &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+    assert_false(dlp_fs_read_bytes(fd, buf, MAX(SSIZE_MAX, SIZE_MAX), &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Early EOF.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+    assert_false(dlp_fs_read_bytes(fd, buf, sizeof(buf), &err));
+    TEST_ASSERT_ERR(err, EBADE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Bad type.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wassign-enum"
+    assert_false(dlp_fs_read_bytes_impl(fd, 999, buf, 3, &err));
+#pragma GCC diagnostic pop
+    TEST_ASSERT_ERR(err, EINVAL, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Small read.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    assert_true(dlp_fs_read_bytes(fd, buf, 3, &err));
+    assert_null(err);
+    assert_memory_equal(buf, "foo", 3);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Largeish read.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    for (i = 0; i < sizeof(buf); i++) {
+        assert_true(dlp_fs_write_bytes(fd, "x", 1, NULL));
+    }
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    assert_true(dlp_fs_read_bytes(fd, buf, sizeof(buf), &err));
+    assert_null(err);
+    for (i = 0; i < sizeof(buf); i++) {
+        assert_memory_equal(buf + i, "x", 1);
+    }
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    if (test_wrap_p()) {
+        GVariantDict *v;
+
+        /*
+         * EBADF.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(read, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        buf[0] = '\0';
+        assert_false(dlp_fs_read_bytes(fd, buf, 3, &err));
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_memory_equal(buf, "\0", 1);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Partial read.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 3);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, "foobarbazqux", 12, NULL));
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        assert_true(dlp_fs_read_bytes(fd, buf, 12, &err));
+        assert_null(err);
+        assert_memory_equal(buf, "foobarbazqux", 12);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Partial read with EOF.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 3);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, "foobarbazqux", 12, NULL));
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        assert_false(dlp_fs_read_bytes(fd, buf, 13, &err));
+        TEST_ASSERT_ERR(err, EBADE, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+    }
+}
+
+static void test_read_bytes_u8(void **state)
+{
+    uint8_t buf[BUFSIZ * 32];
+    int fd;
+    size_t i;
+    GError *err = NULL;
+
+    (void)state;
+
+    /*
+     * Bad size.
+     */
+    memset(buf, 'A', sizeof(buf));
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, buf, 3, NULL));
+    assert_false(dlp_fs_read_bytes(fd, buf, 0, &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, buf, 3, NULL));
+    assert_false(dlp_fs_read_bytes(fd, buf, MAX(SSIZE_MAX, SIZE_MAX), &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Early EOF.
+     */
+    memset(buf, 'A', sizeof(buf));
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, buf, 3, NULL));
+    assert_false(dlp_fs_read_bytes(fd, buf, sizeof(buf), &err));
+    TEST_ASSERT_ERR(err, EBADE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Small read.
+     */
+    memset(buf, 'A', sizeof(buf));
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, buf, 3, NULL));
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    memset(buf, 'B', sizeof(buf));
+    assert_true(dlp_fs_read_bytes(fd, buf, 3, &err));
+    assert_null(err);
+    assert_memory_equal(buf, "AAA", 3);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Largeish read.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    memset(buf, 'A', sizeof(buf));
+    assert_true(dlp_fs_write_bytes(fd, buf, sizeof(buf), NULL));
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    memset(buf, 'B', sizeof(buf));
+    assert_true(dlp_fs_read_bytes(fd, buf, sizeof(buf), &err));
+    assert_null(err);
+    for (i = 0; i < sizeof(buf); i++) {
+        assert_memory_equal(buf + i, "A", 1);
+    }
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    if (test_wrap_p()) {
+        GVariantDict *v;
+
+        /*
+         * EBADF.
+         */
+        memset(buf, 'A', sizeof(buf));
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(read, true, v);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, buf, 3, NULL));
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        buf[0] = '\0';
+        assert_false(dlp_fs_read_bytes(fd, buf, 3, &err));
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_memory_equal(buf, "\0", 1);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Partial read.
+         */
+        for (i = 0; i < sizeof(buf); i++) {
+            buf[i] = i % UINT8_MAX;
+        }
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 3);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, buf, sizeof(buf), NULL));
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        memset(buf, '\0', sizeof(buf));
+        assert_true(dlp_fs_read_bytes(fd, buf, sizeof(buf), &err));
+        assert_null(err);
+        for (i = 0; i < sizeof(buf); i++) {
+            assert_int_equal(buf[i], i % UINT8_MAX);
+        }
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+
+        /*
+         * Partial read with EOF.
+         */
+        memset(buf, 'A', sizeof(buf));
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "len", "u", 3);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, buf, 12, NULL));
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, true, v);
+        assert_false(dlp_fs_read_bytes(fd, buf, 13, &err));
+        TEST_ASSERT_ERR(err, EBADE, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v);
+    }
+}
+
 static void test_write(void **state)
 {
     int fd;
@@ -820,6 +1072,255 @@ static void test_write(void **state)
         assert_int_equal(size, 0);
         assert_true(dlp_fs_close(&fd, NULL));
         g_variant_dict_unref(v);
+    }
+}
+
+static void test_write_bytes_char(void **state)
+{
+    int fd;
+    GError *err = NULL;
+    char buf[BUFSIZ * 32] = { 0 };
+
+    (void)state;
+
+    /*
+     * Bad size.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_false(dlp_fs_write_bytes(fd, buf, 0, &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_false(dlp_fs_write_bytes(fd, buf, MAX(SSIZE_MAX, SIZE_MAX), &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Bad type.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wassign-enum"
+    assert_false(dlp_fs_write_bytes_impl(fd, 999, "foo", 3, &err));
+#pragma GCC diagnostic pop
+    TEST_ASSERT_ERR(err, EINVAL, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Small write.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, "foo", 3, &err));
+    assert_null(err);
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    assert_true(dlp_fs_read_bytes(fd, buf, 3, NULL));
+    assert_memory_equal(buf, "foo", 3);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    if (test_wrap_p()) {
+        GVariantDict *v1, *v2;
+
+        /*
+         * EINTR.
+         */
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "errno", "i", EINTR);
+        g_variant_dict_insert(v1, "rv", "i", -1);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, "foo", 3, &err));
+        assert_null(err);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+
+        /*
+         * EBADF.
+         */
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "errno", "i", EBADF);
+        g_variant_dict_insert(v1, "rv", "i", -1);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write_bytes(fd, "foo", 3, &err));
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+
+        /*
+         * Partial write.
+         */
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "len", "u", 3);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, "foobarbazqux", 12, &err));
+        assert_null(err);
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        assert_true(dlp_fs_read_bytes(fd, buf, 12, NULL));
+        assert_memory_equal(buf, "foobarbazqux", 12);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+
+        /*
+         * Partial write with error.
+         */
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "len", "u", 3);
+
+        v2 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v2, "errno", "i", EBUSY);
+        g_variant_dict_insert(v2, "rv", "i", -1);
+
+        test_wrap_push(write, true, v2);
+        test_wrap_push(write, true, v1);
+        assert_false(dlp_fs_write_bytes(fd, "foobarbazqux", 12, &err));
+        TEST_ASSERT_ERR(err, EBUSY, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+
+        g_variant_dict_unref(v1);
+        g_variant_dict_unref(v2);
+
+        /*
+         * Invalid 0 return value.
+         */
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "len", "u", 0);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write_bytes(fd, buf, 3, &err));
+        TEST_ASSERT_ERR(err, EAGAIN, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+    }
+}
+
+static void test_write_bytes_u8(void **state)
+{
+    int fd;
+    GError *err = NULL;
+    uint8_t buf[BUFSIZ * 32] = { 0 };
+
+    (void)state;
+
+    /*
+     * Bad size.
+     */
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_false(dlp_fs_write_bytes(fd, buf, 0, &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_false(dlp_fs_write_bytes(fd, buf, MAX(SSIZE_MAX, SIZE_MAX), &err));
+    TEST_ASSERT_ERR(err, ERANGE, "*");
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    /*
+     * Small write.
+     */
+    memset(buf, 'A', sizeof(buf));
+    assert_true(dlp_fs_mkstemp(&fd, NULL));
+    assert_true(dlp_fs_write_bytes(fd, buf, 3, &err));
+    assert_null(err);
+    assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+    memset(buf, 'B', sizeof(buf));
+    assert_true(dlp_fs_read_bytes(fd, buf, 3, NULL));
+    assert_memory_equal(buf, "AAA", 3);
+    assert_true(dlp_fs_close(&fd, NULL));
+
+    if (test_wrap_p()) {
+        GVariantDict *v1, *v2;
+        size_t i;
+
+        /*
+         * EINTR.
+         */
+        memset(buf, 'A', sizeof(buf));
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "errno", "i", EINTR);
+        g_variant_dict_insert(v1, "rv", "i", -1);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, buf, 3, &err));
+        assert_null(err);
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+
+        /*
+         * EBADF.
+         */
+        memset(buf, 'A', sizeof(buf));
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "errno", "i", EBADF);
+        g_variant_dict_insert(v1, "rv", "i", -1);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write_bytes(fd, buf, 3, &err));
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+
+        /*
+         * Partial write.
+         */
+        for (i = 0; i < sizeof(buf); i++) {
+            buf[i] = i % UINT8_MAX;
+        }
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "len", "u", 3);
+        test_wrap_push(write, true, v1);
+        test_wrap_push(write, true, v1);
+        test_wrap_push(write, true, v1);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_true(dlp_fs_write_bytes(fd, buf, sizeof(buf), &err));
+        assert_null(err);
+        assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+
+        memset(buf, 'A', sizeof(buf));
+        assert_true(dlp_fs_read_bytes(fd, buf, sizeof(buf), NULL));
+        for (i = 0; i < sizeof(buf); i++) {
+            assert_int_equal(buf[i], i % UINT8_MAX);
+        }
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
+
+        /*
+         * Partial write with error.
+         */
+        memset(buf, 'A', sizeof(buf));
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "len", "u", 3);
+
+        v2 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v2, "errno", "i", EBUSY);
+        g_variant_dict_insert(v2, "rv", "i", -1);
+
+        test_wrap_push(write, true, v2);
+        test_wrap_push(write, true, v1);
+        assert_false(dlp_fs_write_bytes(fd, buf, 12, &err));
+        TEST_ASSERT_ERR(err, EBUSY, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+
+        g_variant_dict_unref(v1);
+        g_variant_dict_unref(v2);
+
+        /*
+         * Invalid 0 return value.
+         */
+        v1 = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v1, "len", "u", 0);
+        test_wrap_push(write, true, v1);
+        assert_true(dlp_fs_mkstemp(&fd, NULL));
+        assert_false(dlp_fs_write_bytes(fd, buf, 3, &err));
+        TEST_ASSERT_ERR(err, EAGAIN, "*");
+        assert_true(dlp_fs_close(&fd, NULL));
+        g_variant_dict_unref(v1);
     }
 }
 
@@ -1293,7 +1794,11 @@ int main(void)
         cmocka_unit_test(test_open),
         cmocka_unit_test(test_close),
         cmocka_unit_test(test_read),
+        cmocka_unit_test(test_read_bytes_char),
+        cmocka_unit_test(test_read_bytes_u8),
         cmocka_unit_test(test_write),
+        cmocka_unit_test(test_write_bytes_char),
+        cmocka_unit_test(test_write_bytes_u8),
         cmocka_unit_test(test_stat),
         cmocka_unit_test(test_fstat),
         cmocka_unit_test(test_seek),
