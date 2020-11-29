@@ -212,6 +212,20 @@ ssize_t __wrap_write(int fd, void *buf, size_t len)
 }
 
 /* cppcheck-suppress unusedFunction */
+off_t __wrap_lseek64(int fd, off_t offset, int whence)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno)) {
+            return -1;
+        }
+        g_error("unhandled spec");
+    }
+    return __real_lseek64(fd, offset, whence);
+}
+
+/* cppcheck-suppress unusedFunction */
 int __wrap_fsync(int fd)
 {
     gint32 rv;

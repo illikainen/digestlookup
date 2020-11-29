@@ -90,6 +90,9 @@ ssize_t __real_read(int fd, void *buf, size_t len);
 ssize_t __wrap_write(int fd, void *buf, size_t len);
 ssize_t __real_write(int fd, void *buf, size_t len);
 
+off_t __wrap_lseek64(int fd, off_t offset, int whence);
+off_t __real_lseek64(int fd, off_t offset, int whence);
+
 int __wrap_fsync(int fd);
 int __real_fsync(int fd);
 
