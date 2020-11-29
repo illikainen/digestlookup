@@ -46,14 +46,27 @@ bool test_setup_home(char **path)
             return false;
         }
     } else {
+        char dir[PATH_MAX];
         int rv;
+
+        rv = snprintf(dir, PATH_MAX, "%s/tmp", BUILD_DIR);
+        if (rv <= 0 || rv >= PATH_MAX) {
+            return false;
+        }
+
+        if (access(dir, F_OK) != 0) {
+            /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+            if (mkdir(dir, S_IRWXU) != 0) {
+                return false;
+            }
+        }
 
         p = malloc(PATH_MAX);
         if (p == NULL) {
             return false;
         }
 
-        rv = snprintf(p, PATH_MAX, "%s/XXXXXX", BUILD_DIR);
+        rv = snprintf(p, PATH_MAX, "%s/XXXXXX", dir);
         if (rv <= 0 || rv >= PATH_MAX) {
             free(p);
             return false;
