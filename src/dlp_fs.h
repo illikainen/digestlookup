@@ -25,7 +25,11 @@
 #define dlp_fs_write_bytes(fd, buf, len, error)                                \
     _Generic((buf),                                                            \
         char *: dlp_fs_write_bytes_impl(fd, DLP_FS_PTR_CHAR, buf, len, error), \
-        uint8_t *: dlp_fs_write_bytes_impl(fd, DLP_FS_PTR_U8, buf, len, error))
+        uint8_t *: dlp_fs_write_bytes_impl(fd, DLP_FS_PTR_U8, buf, len, error),\
+        const char *: dlp_fs_write_bytes_impl(fd, DLP_FS_PTR_CHAR, buf, len,   \
+                                              error),                          \
+        const uint8_t *: dlp_fs_write_bytes_impl(fd, DLP_FS_PTR_U8, buf, len,  \
+                                                 error))
 
 #define DLP_FS_TYPE ((unsigned int)(S_IFMT))
 #define DLP_FS_DIR ((unsigned int)(S_IFDIR))
@@ -56,9 +60,9 @@ bool dlp_fs_read(int fd, void *buf, size_t len, size_t *res,
                  GError **error) DLP_NODISCARD;
 bool dlp_fs_read_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf, size_t len,
                             GError **error) DLP_NODISCARD;
-bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res,
+bool dlp_fs_write(int fd, const void *buf, size_t len, size_t *res,
                   GError **error) DLP_NODISCARD;
-bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf,
+bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, const void *buf,
                              size_t len, GError **error) DLP_NODISCARD;
 bool dlp_fs_seek(int fd, off_t offset, int whence,
                  GError **error) DLP_NODISCARD;

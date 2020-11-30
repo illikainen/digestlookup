@@ -273,7 +273,8 @@ bool dlp_fs_read_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf, size_t len,
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
-bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res, GError **error)
+bool dlp_fs_write(int fd, const void *buf, size_t len, size_t *res,
+                  GError **error)
 {
     ssize_t n;
 
@@ -336,7 +337,7 @@ bool dlp_fs_write(int fd, void *buf, size_t len, size_t *res, GError **error)
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
-bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf,
+bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, const void *buf,
                              size_t len, GError **error)
 {
     size_t n;
@@ -352,9 +353,9 @@ bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, void *buf,
         }
 
         if (type == DLP_FS_PTR_CHAR) {
-            buf = ((char *)buf) + n;
+            buf = ((const char *)buf) + n;
         } else if (type == DLP_FS_PTR_U8) {
-            buf = ((uint8_t *)buf) + n;
+            buf = ((const uint8_t *)buf) + n;
         } else {
             g_set_error(error, DLP_ERROR, EINVAL, "%s", g_strerror(EINVAL));
             return false;
