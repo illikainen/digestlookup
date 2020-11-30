@@ -689,4 +689,34 @@ gchar *__wrap_g_key_file_get_value(GKeyFile *key_file, const gchar *group_name,
     return __real_g_key_file_get_value(key_file, group_name, key, error);
 }
 
+/* cppcheck-suppress unusedFunction */
+lzma_ret __wrap_lzma_auto_decoder(lzma_stream *strm, uint64_t memlimit,
+                                  uint32_t flags)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return (lzma_ret)GPOINTER_TO_INT(elt.value);
+    }
+    return __real_lzma_auto_decoder(strm, memlimit, flags);
+}
+
+/* cppcheck-suppress unusedFunction */
+lzma_ret __wrap_lzma_code(lzma_stream *strm, lzma_action action)
+{
+    lzma_ret rv;
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        g_variant_dict_lookup(elt.value, "avail_out", "u", &strm->avail_out);
+
+        if (g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
+            return rv;
+        }
+
+        g_error("unhandled spec");
+    }
+    return __real_lzma_code(strm, action);
+}
+
 #endif /* TEST_WRAP */

@@ -30,6 +30,7 @@ include(AddCURL)
 include(AddFlag)
 include(AddGLib)
 include(AddGPGME)
+include(AddPkgConfig)
 include(AddThreads)
 include(CheckIPOSupported)
 include(GNUInstallDirs)
@@ -190,6 +191,7 @@ add_curl(REQUIRED)
 add_gpgme(REQUIRED THREAD pthread)
 add_glib(REQUIRED GIO LOG_USE_STRUCTURED LOG_DOMAIN "${PROJECT_NAME}")
 add_threads(REQUIRED)
+add_pkg_config(REQUIRED PKG liblzma)
 
 #
 # Transpile config.h.

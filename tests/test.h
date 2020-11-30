@@ -19,6 +19,7 @@
 #include <gio/gio.h>
 #include <glib.h>
 #include <gpgme.h>
+#include <lzma.h>
 
 #include "dlp.h"
 #include "dlp_mem.h"
@@ -234,5 +235,17 @@ gchar *__wrap_g_key_file_get_value(GKeyFile *key_file, const gchar *group_name,
 gchar *__real_g_key_file_get_value(GKeyFile *key_file, const gchar *group_name,
                                    const gchar *key,
                                    GError **error) G_GNUC_MALLOC;
+
+lzma_ret __wrap_lzma_auto_decoder(lzma_stream *strm, uint64_t memlimit,
+                                  uint32_t flags)
+    lzma_nothrow lzma_attr_warn_unused_result;
+lzma_ret __real_lzma_auto_decoder(lzma_stream *strm, uint64_t memlimit,
+                                  uint32_t flags)
+    lzma_nothrow lzma_attr_warn_unused_result;
+
+lzma_ret __wrap_lzma_code(lzma_stream *strm, lzma_action action)
+    lzma_nothrow lzma_attr_warn_unused_result;
+lzma_ret __real_lzma_code(lzma_stream *strm, lzma_action action)
+    lzma_nothrow lzma_attr_warn_unused_result;
 
 #endif /* TEST_H */
