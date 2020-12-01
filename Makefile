@@ -1,38 +1,50 @@
-SOURCE := $(PWD)
+.POSIX:
 
-BUILD ?= $(PWD)/build
-BUILD_DEBUG ?= $(BUILD)/debug
-BUILD_RELEASE ?= $(BUILD)/release
+TARGET ?=
+JOBS ?= 5
+FUZZ_ARGS ?= -max_total_time=10
+
+SOURCE := $(PWD)
+BUILD := $(SOURCE)/build
+BUILD_DEBUG := $(BUILD)/debug
+BUILD_RELEASE := $(BUILD)/release
 
 all: release
+
+$(BUILD_RELEASE):
+	@cmake -B $(BUILD_RELEASE) -DCMAKE_BUILD_TYPE=Release
+
+$(BUILD_DEBUG):
+	@cmake -B $(BUILD_DEBUG) -DCMAKE_BUILD_TYPE=Debug
+
+release: $(BUILD_RELEASE)
+	@cmake --build $(BUILD_RELEASE) -j $(JOBS) --target $(TARGET)
+
+debug: $(BUILD_DEBUG)
+	@cmake --build $(BUILD_DEBUG) -j $(JOBS) --target $(TARGET)
+	@cp $(BUILD_DEBUG)/compile_commands.json .
+	@utils/fix-clangd compile_commands.json
+
+test-release: release
+	@cd $(BUILD_RELEASE) && QA_FUZZ_ARGS=$(FUZZ_ARGS) \
+		ctest --output-on-failure -j $(JOBS) -R $(TARGET)
+
+test-debug: debug
+	@cd $(BUILD_DEBUG) && QA_FUZZ_ARGS=$(FUZZ_ARGS) \
+		ctest --output-on-failure -j $(JOBS) -R $(TARGET)
+
+test: test-debug
 
 clean:
 	@rm -rf $(BUILD)
 
-debug:
-	@mkdir -p $(BUILD_DEBUG)
-	@cd $(BUILD_DEBUG) && \
-		cmake $(SOURCE) -DCMAKE_BUILD_TYPE=Debug && make
-	@cp $(BUILD_DEBUG)/compile_commands.json .
-	@utils/fix-clangd compile_commands.json
-
-release:
-	@mkdir -p $(BUILD_RELEASE)
-	@cd $(BUILD_RELEASE) && \
-		cmake $(SOURCE) -DCMAKE_BUILD_TYPE=Release && make
-
 install: release
-	@cd $(BUILD_RELEASE) && make install
+	@cmake --build $(BUILD_RELEASE) --target install
 
-test: debug
-	@find $(BUILD_DEBUG) \( -name "*.profraw" -o -name "profdata" \) \
-		-exec rm "{}" \;
-	@cd $(BUILD_DEBUG) && CTEST_OUTPUT_ON_FAILURE=1 make test
+check: test-debug
+	@cmake --build $(BUILD_DEBUG) --target check
 
-check: test
-	@cd $(BUILD_DEBUG) && make check
+fix: $(BUILD_DEBUG)
+	@cmake --build $(BUILD_DEBUG) --target fix
 
-fix: debug
-	@cd $(BUILD_DEBUG) && make fix
-
-.PHONY: all clean debug release install test check fix
+.PHONY: all release debug test-release test-debug test clean install check fix
