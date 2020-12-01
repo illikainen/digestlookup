@@ -1,14 +1,32 @@
 include(AddWraps)
+include(CopyProperties)
+
+set(qa "${PROJECT_SOURCE_DIR}/cmake/QA.cmake")
+
+file(GLOB_RECURSE fixtures
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    CONFIGURE_DEPENDS
+    "fixture_*.c")
 
 file(GLOB_RECURSE tests
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_DEPENDS
     "test_*.c")
 
+file(GLOB_RECURSE fuzz
+    RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
+    CONFIGURE_DEPENDS
+    "fuzz_*.c")
+
 file(GLOB_RECURSE lib
     RELATIVE ${CMAKE_CURRENT_SOURCE_DIR}
     CONFIGURE_DEPENDS
     "test.c" "dlp_*.c")
+
+set(environ
+    G_DEBUG=fatal-warnings
+    G_MESSAGES_DEBUG=all
+    LSAN_OPTIONS=report_objects=1)
 
 #
 # Test library.
@@ -17,6 +35,8 @@ add_library(test_obj OBJECT ${lib})
 target_compile_definitions(test_obj
     PUBLIC PROJECT_DIR="${PROJECT_SOURCE_DIR}"
     PUBLIC BUILD_DIR="${PROJECT_BINARY_DIR}")
+target_link_libraries(test_obj
+    PUBLIC ${PROJECT_NAME}_obj)
 
 # Clang CFI requires LTO.  However, symbol wrapping in BFD 2.31.1 seems broken
 # in LTO builds; but gold (ELF-only) works with Clang.  GCC doesn't seem to
@@ -39,35 +59,79 @@ add_pkg_config(TARGET test_obj SCOPE INTERFACE PKG cmocka REQUIRED)
 add_pkg_config(TARGET test_obj SCOPE INTERFACE PKG libmicrohttpd REQUIRED)
 
 #
+# Fixtures.
+#
+foreach(file ${fixtures})
+    string(REGEX REPLACE "/" "-" bin "${file}")
+    string(REGEX REPLACE "\.c$" "" bin "${bin}")
+
+    add_executable("${bin}" "${file}")
+    target_link_libraries("${bin}" PRIVATE test_obj)
+    copy_properties("${bin}" PRIVATE test_obj)
+
+    foreach(stage SETUP CLEANUP)
+        string(TOLOWER "${bin}_${stage}" name)
+        add_test("${name}" "${bin}")
+        set(env ${environ}
+            "FIXTURE_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+            "FIXTURE_BUILD_DIR=${CMAKE_CURRENT_BINARY_DIR}"
+            "FIXTURE_${stage}=1")
+        set_tests_properties("${name}" PROPERTIES
+            ENVIRONMENT "${env}"
+            FIXTURES_${stage} "${name}")
+    endforeach()
+endforeach()
+
+#
 # Tests.
 #
-foreach(test ${tests})
-    string(REGEX REPLACE "/" "-" test_bin ${test})
-    string(REGEX REPLACE "\.c$" "" test_bin ${test_bin})
+foreach(file ${tests})
+    string(REGEX REPLACE "/" "-" bin ${file})
+    string(REGEX REPLACE "\.c$" "" bin ${bin})
+    string(REGEX REPLACE "^(fuzz|test)_" "" name "${bin}")
+    set(fixture "fixture_${name}")
 
-    add_executable(${test_bin} ${test})
-    add_test(${test_bin} ${test_bin})
-    set(env
-        G_DEBUG=fatal-warnings
-        G_MESSAGES_DEBUG=all
-        LLVM_PROFILE_FILE=${test_bin}-%m%c.profraw
-        LSAN_OPTIONS=report_objects=1)
-    set_tests_properties(${test_bin} PROPERTIES ENVIRONMENT "${env}")
+    add_executable("${bin}" "${file}")
+    add_test("${bin}" "${CMAKE_COMMAND}"
+        -D "QA_ACTION=test"
+        -D "QA_TEST_CWD=${CMAKE_CURRENT_BINARY_DIR}"
+        -D "QA_TEST_CMD=${bin}"
+        -P "${qa}")
 
-    # See:
-    # - https://gitlab.kitware.com/cmake/cmake/-/issues/14778
-    # - https://gitlab.kitware.com/cmake/cmake/-/issues/18010
-    # - https://gitlab.kitware.com/cmake/cmake/-/issues/18090
-    target_include_directories(${test_bin}
-        PRIVATE $<TARGET_PROPERTY:test_obj,INTERFACE_INCLUDE_DIRECTORIES>)
-    target_compile_definitions(${test_bin}
-        PRIVATE $<TARGET_PROPERTY:test_obj,INTERFACE_COMPILE_DEFINITIONS>)
-    target_compile_options(${test_bin}
-        PRIVATE $<TARGET_PROPERTY:test_obj,INTERFACE_COMPILE_OPTIONS>)
-    target_link_options(${test_bin}
-        PRIVATE $<TARGET_PROPERTY:test_obj,INTERFACE_LINK_OPTIONS>)
-    target_link_libraries(${test_bin}
-        PRIVATE $<TARGET_PROPERTY:test_obj,INTERFACE_LINK_LIBRARIES>
-        PRIVATE test_obj
-        PRIVATE ${PROJECT_NAME}_obj)
+    set(env ${environ} "LLVM_PROFILE_FILE=${bin}-%m%c.profraw")
+    set_tests_properties("${bin}" PROPERTIES
+        ENVIRONMENT "${env}"
+        FIXTURES_REQUIRED "${fixture}_setup;${fixture}_cleanup")
+    copy_properties("${bin}" PRIVATE test_obj)
+    target_link_libraries("${bin}" PRIVATE test_obj)
 endforeach()
+
+#
+# Fuzz targets.
+#
+if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+    foreach(file ${fuzz})
+        string(REGEX REPLACE "/" "-" bin "${file}")
+        string(REGEX REPLACE "\.c$" "" bin "${bin}")
+        string(REGEX REPLACE "^(fuzz|test)_" "" name "${bin}")
+        set(corpus "${PROJECT_BINARY_DIR}/tests/data/${name}")
+        set(fixture "fixture_${name}")
+
+        add_executable("${bin}" "${file}")
+        add_test("${bin}" "${CMAKE_COMMAND}"
+            -D "QA_ACTION=fuzz"
+            -D "QA_FUZZ_CWD=${CMAKE_CURRENT_BINARY_DIR}"
+            -D "QA_FUZZ_CMD=${bin}"
+            -D "QA_FUZZ_CORPUS=${corpus}"
+            -P "${qa}")
+
+        set(env ${environ} "LLVM_PROFILE_FILE=${bin}-%m%c.profraw")
+        set_tests_properties("${bin}" PROPERTIES
+            ENVIRONMENT "${env}"
+            FIXTURES_REQUIRED "${fixture}_setup;${fixture}_cleanup")
+        copy_properties("${bin}" PRIVATE "test_obj")
+        target_compile_options("${bin}" PRIVATE -fsanitize=fuzzer)
+        target_link_options("${bin}" PRIVATE -fsanitize=fuzzer)
+        target_link_libraries("${bin}" PRIVATE test_obj)
+    endforeach()
+endif()
