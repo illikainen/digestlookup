@@ -25,7 +25,7 @@ static GLogWriterOutput dlp_log_writer(GLogLevelFlags level,
                                        const GLogField *fields, gsize nfields,
                                        gpointer data) DLP_NODISCARD;
 static void dlp_log_handler(const gchar *domain, GLogLevelFlags level,
-                            const gchar *msg, gpointer data) G_GNUC_NORETURN;
+                            const gchar *msg, gpointer data);
 static void dlp_log_print_handler(const gchar *str);
 static void dlp_log_printerr_handler(const gchar *str);
 
@@ -217,24 +217,21 @@ static GLogWriterOutput dlp_log_writer(GLogLevelFlags level,
 /**
  * Handler for old-style logging.
  *
- * This function should never be called if structured logging is setup
- * properly.  It invokes abort() to avoid showing potentially bad output
- * (e.g. escape sequences) to the user.
+ * This function shouldn't be called if structured logging is setup properly.
+ * However, it is called for some GLib debug messages; so they are sent to the
+ * structured log handler.
  *
- * @param domain    Not used.
- * @param level     Not used.
- * @param msg       Not used.
+ * @param domain    Log domain.
+ * @param level     Log level.
+ * @param msg       Message.
  * @param data      Not used.
  */
 static void dlp_log_handler(const gchar *domain, GLogLevelFlags level,
                             const gchar *msg, gpointer data)
 {
-    (void)domain;
-    (void)level;
-    (void)msg;
     (void)data;
 
-    abort();
+    g_log_structured(domain, level, "MESSAGE", "%s", msg);
 }
 
 /**
