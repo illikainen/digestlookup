@@ -575,7 +575,7 @@ static void test_close(void **state)
 
 static void test_read(void **state)
 {
-    char buf[BUFSIZ * 32];
+    char buf[DLP_BUFSIZ * 32];
     int fd;
     size_t i;
     size_t size;
@@ -711,7 +711,7 @@ static void test_read(void **state)
 
 static void test_read_bytes_char(void **state)
 {
-    char buf[BUFSIZ * 32];
+    char buf[DLP_BUFSIZ * 32];
     int fd;
     size_t i;
     GError *err = NULL;
@@ -835,7 +835,7 @@ static void test_read_bytes_char(void **state)
 
 static void test_read_bytes_u8(void **state)
 {
-    uint8_t buf[BUFSIZ * 32];
+    uint8_t buf[DLP_BUFSIZ * 32];
     int fd;
     size_t i;
     GError *err = NULL;
@@ -966,7 +966,7 @@ static void test_write(void **state)
     int fd;
     size_t size;
     GError *err = NULL;
-    char buf[BUFSIZ * 32] = { 0 };
+    char buf[DLP_BUFSIZ * 32] = { 0 };
 
     (void)state;
 
@@ -1079,7 +1079,7 @@ static void test_write_bytes_char(void **state)
 {
     int fd;
     GError *err = NULL;
-    char buf[BUFSIZ * 32] = { 0 };
+    char buf[DLP_BUFSIZ * 32] = { 0 };
 
     (void)state;
 
@@ -1201,7 +1201,7 @@ static void test_write_bytes_u8(void **state)
 {
     int fd;
     GError *err = NULL;
-    uint8_t buf[BUFSIZ * 32] = { 0 };
+    uint8_t buf[DLP_BUFSIZ * 32] = { 0 };
 
     (void)state;
 

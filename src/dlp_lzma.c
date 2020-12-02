@@ -7,7 +7,6 @@
 #include "dlp_lzma.h"
 
 #include <errno.h>
-#include <stdio.h>
 
 #include <glib/gi18n.h>
 #include <lzma.h>
@@ -75,8 +74,8 @@ static bool dlp_lzma_code(lzma_stream *strm, int infd, int outfd, size_t size,
 {
     size_t len;
     lzma_ret rv;
-    uint8_t inbuf[BUFSIZ] = { 0 };
-    uint8_t outbuf[BUFSIZ] = { 0 };
+    uint8_t inbuf[DLP_BUFSIZ] = { 0 };
+    uint8_t outbuf[DLP_BUFSIZ] = { 0 };
 
     g_return_val_if_fail(strm != NULL && infd >= 0 && outfd >= 0, false);
     g_return_val_if_fail(infd != outfd && size != 0, false);

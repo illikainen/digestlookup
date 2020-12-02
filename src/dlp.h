@@ -7,6 +7,10 @@
 #ifndef DLP_H
 #define DLP_H
 
+#include <limits.h>
+
+#define DLP_BUFSIZ MIN(8192, MIN(SIZE_MAX, SSIZE_MAX))
+
 #if defined(__clang__) || defined(__GNUC__)
 #    define DLP_ALLOC_SIZE(n) __attribute__((alloc_size(n)))
 #    define DLP_NODISCARD __attribute__((warn_unused_result))

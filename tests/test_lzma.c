@@ -322,7 +322,7 @@ static void test_lzma_decompress_fail(gpointer data, gconstpointer user_data)
          * Decode integer overflow.
          */
         v = g_variant_dict_new(NULL);
-        g_variant_dict_insert(v, "avail_out", "u", BUFSIZ + 1);
+        g_variant_dict_insert(v, "avail_out", "u", DLP_BUFSIZ + 1);
         g_variant_dict_insert(v, "rv", "i", LZMA_STREAM_END);
 
         g_assert_true(dlp_fs_cache_path(&plain, NULL, "dec-mem", NULL));

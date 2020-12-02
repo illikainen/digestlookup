@@ -7,7 +7,6 @@
 #include "dlp_digest.h"
 
 #include <errno.h>
-#include <stdio.h>
 
 #include <glib/gi18n.h>
 
@@ -114,7 +113,7 @@ static bool dlp_digest_update(GChecksum *cksum, int fd, size_t size,
 {
     size_t len;
     gssize cklen;
-    guchar buf[MAX(1, MIN(SIZE_MAX, BUFSIZ))];
+    guchar buf[DLP_BUFSIZ] = { 0 };
 
     g_return_val_if_fail(cksum != NULL && fd >= 0, false);
 
