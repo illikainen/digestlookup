@@ -120,8 +120,9 @@ static bool dlp_lzma_code(lzma_stream *strm, int infd, int outfd, size_t size,
         }
     } while (rv != LZMA_STREAM_END);
 
-    if (!dlp_fs_read(infd, inbuf, 1, &len, error) || len != 0) {
-        g_prefix_error(error, "%s: ", _("expected EOF"));
+    if (!dlp_fs_read(infd, inbuf, 1, &len, NULL) || len != 0) {
+        g_set_error(error, DLP_ERROR, DLP_LZMA_ERROR_EOF, "%s",
+                    _("expected EOF"));
         return false;
     }
 

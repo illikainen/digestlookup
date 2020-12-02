@@ -15,6 +15,7 @@
 
 enum dlp_lzma_error {
     DLP_LZMA_ERROR_FAILED = 1,
+    DLP_LZMA_ERROR_EOF,
 };
 
 bool dlp_lzma_decompress(int infd, int outfd, GError **error) DLP_NODISCARD;

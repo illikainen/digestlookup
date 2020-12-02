@@ -409,11 +409,10 @@ static void test_lzma_decompress_fail(gpointer data, gconstpointer user_data)
         dlp_mem_free(&comp);
 
         /*
-         * Final read() failure.
+         * Missing EOF.
          */
         v = g_variant_dict_new(NULL);
-        g_variant_dict_insert(v, "rv", "i", -1);
-        g_variant_dict_insert(v, "errno", "i", EBADF);
+        g_variant_dict_insert(v, "rv", "i", 1);
 
         g_assert_true(dlp_fs_cache_path(&plain, NULL, "fin-read", NULL));
         g_assert_true(dlp_fs_cache_path(&comp, NULL, "fin-read.xz", NULL));
@@ -424,7 +423,7 @@ static void test_lzma_decompress_fail(gpointer data, gconstpointer user_data)
         test_wrap_push(read, true, v);
         test_wrap_push(read, false, NULL);
         rv = dlp_lzma_decompress(infd, outfd, &err);
-        g_assert_error(err, DLP_ERROR, EBADF);
+        g_assert_error(err, DLP_ERROR, DLP_LZMA_ERROR_EOF);
         g_assert_false(rv);
         g_assert_true(dlp_fs_fstat(outfd, &st, NULL));
         g_assert_cmpint(st.st_size, ==, 0);
