@@ -4,8 +4,88 @@
  * SPDX-License-Identifier:
  */
 
+#include "config.h"
 #include "dlp_log.h"
 #include "test.h"
+
+static void test_log_verbosity(void)
+{
+    GTestSubprocessFlags flags = (GTestSubprocessFlags)0;
+
+    g_test_trap_subprocess("/log/verbosity/subprocess/funcall-enable", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout("DEBUG:*enabled*");
+
+    g_test_trap_subprocess("/log/verbosity/subprocess/funcall-disable", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout_unmatched("DEBUG:*enabled*");
+
+    g_test_trap_subprocess("/log/verbosity/subprocess/env-enable-all", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout("DEBUG:*enabled*");
+
+    g_test_trap_subprocess("/log/verbosity/subprocess/env-disable-all", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout("DEBUG:*enabled*");
+
+    g_test_trap_subprocess("/log/verbosity/subprocess/env-enable-domain", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout("DEBUG:*enabled*");
+
+    g_test_trap_subprocess("/log/verbosity/subprocess/env-bogus-domain", 0,
+                           flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout_unmatched("DEBUG:*enabled*");
+}
+
+static void test_log_verbosity_funcall_enable(void)
+{
+    g_unsetenv("G_MESSAGES_DEBUG");
+    dlp_log_set_verbosity(true);
+
+    g_debug("enabled");
+}
+
+static void test_log_verbosity_funcall_disable(void)
+{
+    g_unsetenv("G_MESSAGES_DEBUG");
+    dlp_log_set_verbosity(false);
+
+    g_debug("enabled");
+}
+
+static void test_log_verbosity_env_enable_all(void)
+{
+    dlp_log_set_verbosity(false);
+    g_assert_true(g_setenv("G_MESSAGES_DEBUG", "all", 1));
+    g_debug("enabled");
+}
+
+static void test_log_verbosity_env_disable_all(void)
+{
+    dlp_log_set_verbosity(true);
+    g_unsetenv("G_MESSAGES_DEBUG");
+    g_debug("enabled");
+}
+
+static void test_log_verbosity_env_enable_domain(void)
+{
+    dlp_log_set_verbosity(false);
+    g_assert_true(g_setenv("G_MESSAGES_DEBUG", PROJECT_NAME, 1));
+    g_debug("enabled");
+}
+
+static void test_log_verbosity_env_bogus_domain(void)
+{
+    dlp_log_set_verbosity(false);
+    g_assert_true(g_setenv("G_MESSAGES_DEBUG", "foobar123", 1));
+    g_debug("enabled");
+}
 
 static void test_log_sanitize(void)
 {
@@ -134,11 +214,56 @@ static void test_log_file_no_separator(void)
                      "CODE_LINE", "123", "CODE_FUNC", "bar", "MESSAGE", "baz");
 }
 
+static void test_log_msg(void)
+{
+    GTestSubprocessFlags flags = (GTestSubprocessFlags)0;
+
+    g_test_trap_subprocess("/log/msg/subprocess/empty", 0, flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout_unmatched("*(nil)*");
+    g_test_trap_assert_stdout_unmatched("*(null)*");
+    g_test_trap_assert_stdout("*<empty>*");
+
+    g_test_trap_subprocess("/log/msg/subprocess/partly-empty", 0, flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stdout_unmatched("*(nil)*");
+    g_test_trap_assert_stdout_unmatched("*(null)*");
+    g_test_trap_assert_stdout("*<empty>*");
+}
+
+static void test_log_msg_empty(void)
+{
+    dlp_log_set_verbosity(true);
+
+    g_log_structured(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "MESSAGE", NULL);
+}
+
+static void test_log_msg_partly_empty(void)
+{
+    dlp_log_set_verbosity(true);
+
+    g_log_structured(G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "CODE_FILE", "foo.c",
+                     "CODE_LINE", "123", "CODE_FUNC", "bar", "MESSAGE", NULL);
+}
+
 int main(int argc, char **argv)
 {
     g_assert_true(setenv("G_TEST_SRCDIR", PROJECT_DIR, 1) == 0);
     g_assert_true(setenv("G_TEST_BUILDDIR", BUILD_DIR, 1) == 0);
 
+    g_test_add_func("/log/verbosity", test_log_verbosity);
+    g_test_add_func("/log/verbosity/subprocess/funcall-enable",
+                    test_log_verbosity_funcall_enable);
+    g_test_add_func("/log/verbosity/subprocess/funcall-disable",
+                    test_log_verbosity_funcall_disable);
+    g_test_add_func("/log/verbosity/subprocess/env-enable-all",
+                    test_log_verbosity_env_enable_all);
+    g_test_add_func("/log/verbosity/subprocess/env-disable-all",
+                    test_log_verbosity_env_disable_all);
+    g_test_add_func("/log/verbosity/subprocess/env-enable-domain",
+                    test_log_verbosity_env_enable_domain);
+    g_test_add_func("/log/verbosity/subprocess/env-bogus-domain",
+                    test_log_verbosity_env_bogus_domain);
     g_test_add_func("/log/sanitize", test_log_sanitize);
     g_test_add_func("/log/sanitize/subprocess/escape-debug",
                     test_log_sanitize_escape_debug);
@@ -162,6 +287,10 @@ int main(int argc, char **argv)
     g_test_add_func("/log/file/subprocess/separator", test_log_file_separator);
     g_test_add_func("/log/file/subprocess/no-separator",
                     test_log_file_no_separator);
+    g_test_add_func("/log/msg", test_log_msg);
+    g_test_add_func("/log/msg/subprocess/empty", test_log_msg_empty);
+    g_test_add_func("/log/msg/subprocess/partly-empty",
+                    test_log_msg_partly_empty);
 
     g_test_init(&argc, &argv, NULL);
 

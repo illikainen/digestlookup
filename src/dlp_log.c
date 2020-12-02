@@ -14,13 +14,25 @@
 #include "dlp_mem.h"
 #include "dlp_str.h"
 
+struct dlp_log_fields {
+    const char *domain;
+    const char *file;
+    const char *line;
+    const char *func;
+    const char *msg;
+};
+
 static void dlp_log_ctor(void) DLP_CONSTRUCTOR;
-static bool dlp_log_p(GLogLevelFlags level) DLP_NODISCARD;
+static bool dlp_log_fields(const GLogField *fields, gsize nfields,
+                           struct dlp_log_fields *lf) DLP_NODISCARD;
+static bool dlp_log_p(GLogLevelFlags level,
+                      const struct dlp_log_fields *lf) DLP_NODISCARD;
 static bool dlp_log_stream(GLogLevelFlags level, FILE **fp) DLP_NODISCARD;
 static bool dlp_log_prefix(GLogLevelFlags level, bool color,
                            char **str) DLP_NODISCARD;
-static bool dlp_log_format(GLogLevelFlags level, const GLogField *fields,
-                           gsize nfields, char **str) DLP_NODISCARD;
+static bool dlp_log_format(GLogLevelFlags level,
+                           const struct dlp_log_fields *lf,
+                           char **str) DLP_NODISCARD;
 static GLogWriterOutput dlp_log_writer(GLogLevelFlags level,
                                        const GLogField *fields, gsize nfields,
                                        gpointer data) DLP_NODISCARD;
@@ -58,18 +70,78 @@ static void dlp_log_ctor(void)
 }
 
 /**
+ * Retrieve the fields for a structured log message.
+ *
+ * @param fields    Structured data fields.
+ * @param nfields   Number of available fields.
+ * @param lf        Field structure allocated by the caller.  The lifetime of
+ *                  its members is that of the fields argument.
+ * @return True on success and false on failure.
+ */
+static bool dlp_log_fields(const GLogField *fields, gsize nfields,
+                           struct dlp_log_fields *lf)
+{
+    gsize i;
+
+    g_return_val_if_fail(fields != NULL && lf != NULL, false);
+    lf->file = lf->line = lf->func = lf->msg = lf->domain = NULL;
+
+    for (i = 0; i < nfields; i++) {
+        if (fields[i].key != NULL && fields[i].length == -1) {
+            if (strcmp(fields[i].key, "CODE_FILE") == 0) {
+                lf->file = g_strrstr(fields[i].value, G_DIR_SEPARATOR_S);
+                if (lf->file != NULL) {
+                    lf->file++;
+                } else {
+                    lf->file = fields[i].value;
+                }
+            } else if (strcmp(fields[i].key, "CODE_LINE") == 0) {
+                lf->line = fields[i].value;
+            } else if (strcmp(fields[i].key, "CODE_FUNC") == 0) {
+                lf->func = fields[i].value;
+            } else if (strcmp(fields[i].key, "MESSAGE") == 0) {
+                lf->msg = fields[i].value;
+            } else if (strcmp(fields[i].key, "GLIB_DOMAIN") == 0) {
+                lf->domain = fields[i].value;
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
  * Check whether a message should be logged.
  *
  * @param level Log level for the message.
+ * @param lf    Log fields.
  * @return True if the message should be logged and false otherwise.
  */
-static bool dlp_log_p(GLogLevelFlags level)
+static bool dlp_log_p(GLogLevelFlags level, const struct dlp_log_fields *lf)
 {
+    char *domain;
+
+    g_return_val_if_fail(lf != NULL, false);
+
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-    if (level & G_LOG_LEVEL_DEBUG) {
-        return dlp_log_verbose;
+    if (dlp_log_verbose || (level & G_LOG_LEVEL_DEBUG) == 0) {
+        return true;
     }
-    return true;
+
+    domain = g_strdup(g_getenv("G_MESSAGES_DEBUG"));
+    if (domain != NULL) {
+        if (strstr(domain, "all") != NULL) {
+            g_free(domain);
+            return true;
+        }
+        if (lf->domain != NULL && strstr(lf->domain, domain) != NULL) {
+            g_free(domain);
+            return true;
+        }
+        g_free(domain);
+    }
+
+    return false;
 }
 
 /**
@@ -99,6 +171,7 @@ static bool dlp_log_stream(GLogLevelFlags level, FILE **fp)
  * @param level Log level for the message.
  * @param color Whether to use colors.
  * @param str   Message prefix.
+ * @return True on success and false on failure.
  */
 static bool dlp_log_prefix(GLogLevelFlags level, bool color, char **str)
 {
@@ -122,51 +195,24 @@ static bool dlp_log_prefix(GLogLevelFlags level, bool color, char **str)
 /**
  * Format a structured log message.
  *
- * @param level     Log level for the message.
- * @param fields    Structured data fields.
- * @param nfields   Number of available fields.
- * @param str       Log message that must be freed after use.
+ * @param level Log level for the message.
+ * @param lf    Log fields.
+ * @param str   Log message that must be freed after use.
  * @return True on success and false on failure.
  */
-static bool dlp_log_format(GLogLevelFlags level, const GLogField *fields,
-                           gsize nfields, char **str)
+static bool dlp_log_format(GLogLevelFlags level,
+                           const struct dlp_log_fields *lf, char **str)
 {
-    gsize i;
-    const char *file = NULL;
-    const char *line = NULL;
-    const char *func = NULL;
-    const char *msg = "<empty>";
-    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-    GLogLevelFlags verbose = (GLogLevelFlags)(G_LOG_LEVEL_DEBUG |
-                                              G_LOG_LEVEL_ERROR);
-
-    g_return_val_if_fail(fields != NULL && str != NULL, false);
+    g_return_val_if_fail(lf != NULL && str != NULL, false);
     *str = NULL;
 
-    for (i = 0; i < nfields; i++) {
-        if (fields[i].key != NULL && fields[i].length == -1) {
-            if (strcmp(fields[i].key, "CODE_FILE") == 0) {
-                file = g_strrstr(fields[i].value, G_DIR_SEPARATOR_S);
-                if (file != NULL) {
-                    file++;
-                } else {
-                    file = fields[i].value;
-                }
-            } else if (strcmp(fields[i].key, "CODE_LINE") == 0) {
-                line = fields[i].value;
-            } else if (strcmp(fields[i].key, "CODE_FUNC") == 0) {
-                func = fields[i].value;
-            } else if (strcmp(fields[i].key, "MESSAGE") == 0) {
-                msg = fields[i].value;
-            }
-        }
-    }
-
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-    if (level & verbose && file != NULL && line != NULL && func != NULL) {
-        *str = g_strdup_printf("%s:%s:%s(): %s", file, line, func, msg);
+    if (level & (GLogLevelFlags)(G_LOG_LEVEL_DEBUG | G_LOG_LEVEL_ERROR) &&
+        lf->file != NULL && lf->line != NULL && lf->func != NULL) {
+        *str = g_strdup_printf("%s:%s:%s(): %s", lf->file, lf->line, lf->func,
+                               lf->msg != NULL ? lf->msg : "<empty>");
     } else {
-        *str = g_strdup_printf("%s", msg);
+        *str = g_strdup_printf("%s", lf->msg != NULL ? lf->msg : "<empty>");
     }
 
     return true;
@@ -197,12 +243,14 @@ static GLogWriterOutput dlp_log_writer(GLogLevelFlags level,
     FILE *fp;
     char *msg;
     char *pfx;
+    struct dlp_log_fields lf = { 0 };
 
     (void)data;
 
-    if (fields == NULL || !dlp_log_p(level) || !dlp_log_stream(level, &fp) ||
+    if (fields == NULL || !dlp_log_fields(fields, nfields, &lf) ||
+        !dlp_log_p(level, &lf) || !dlp_log_stream(level, &fp) ||
         !dlp_log_prefix(level, g_log_writer_supports_color(fileno(fp)), &pfx) ||
-        !dlp_log_format(level, fields, nfields, &msg)) {
+        !dlp_log_format(level, &lf, &msg)) {
         return G_LOG_WRITER_UNHANDLED;
     }
 
