@@ -47,6 +47,88 @@ static void test_mem_alloc(void)
     g_test_trap_assert_stderr("*ERROR*invalid size*");
 }
 
+static void test_mem_alloc_n_size_0(void)
+{
+    char *ptr;
+
+    ptr = dlp_mem_alloc_n(0, 1);
+    dlp_mem_free(&ptr);
+}
+
+static void test_mem_alloc_n_size_large(void)
+{
+    char *ptr;
+
+    ptr = dlp_mem_alloc_n(RSIZE_MAX, 1);
+    dlp_mem_free(&ptr);
+}
+
+static void test_mem_alloc_n_nmemb_0(void)
+{
+    char *ptr;
+
+    ptr = dlp_mem_alloc_n(1, 0);
+    dlp_mem_free(&ptr);
+}
+
+static void test_mem_alloc_n_nmemb_large(void)
+{
+    char *ptr;
+
+    ptr = dlp_mem_alloc_n(1, RSIZE_MAX);
+    dlp_mem_free(&ptr);
+}
+
+static void test_mem_alloc_n_size_nmemb_0(void)
+{
+    char *ptr;
+
+    ptr = dlp_mem_alloc_n(0, 0);
+    dlp_mem_free(&ptr);
+}
+
+static void test_mem_alloc_n_size_nmemb_large(void)
+{
+    char *ptr;
+
+    ptr = dlp_mem_alloc_n(RSIZE_MAX, RSIZE_MAX);
+    dlp_mem_free(&ptr);
+}
+
+static void test_mem_alloc_n(void)
+{
+    void *ptr;
+    GTestSubprocessFlags flags = (GTestSubprocessFlags)0;
+
+    g_assert_nonnull(ptr = dlp_mem_alloc_n(123, 321));
+    dlp_mem_free(&ptr);
+
+    g_test_trap_subprocess("/mem/alloc-n/subprocess/size-0", 0, flags);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*ERROR*invalid size*");
+
+    g_test_trap_subprocess("/mem/alloc-n/subprocess/size-large", 0, flags);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*ERROR*invalid size*");
+
+    g_test_trap_subprocess("/mem/alloc-n/subprocess/nmemb-0", 0, flags);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*ERROR*invalid size*");
+
+    g_test_trap_subprocess("/mem/alloc-n/subprocess/nmemb-large", 0, flags);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*ERROR*invalid size*");
+
+    g_test_trap_subprocess("/mem/alloc-n/subprocess/size-nmemb-0", 0, flags);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*ERROR*invalid size*");
+
+    g_test_trap_subprocess("/mem/alloc-n/subprocess/size-nmemb-large", 0,
+                           flags);
+    g_test_trap_assert_failed();
+    g_test_trap_assert_stderr("*ERROR*invalid size*");
+}
+
 static void test_mem_free(gpointer data)
 {
     struct test_mem *m = data;
@@ -113,6 +195,18 @@ int main(int argc, char **argv)
     g_test_add_func("/mem/alloc/subprocess/0", test_mem_alloc_0);
     g_test_add_func("/mem/alloc/subprocess/large", test_mem_alloc_large);
     g_test_add_func("/mem/alloc", test_mem_alloc);
+    g_test_add_func("/mem/alloc-n", test_mem_alloc_n);
+    g_test_add_func("/mem/alloc-n/subprocess/size-0", test_mem_alloc_n_size_0);
+    g_test_add_func("/mem/alloc-n/subprocess/size-large",
+                    test_mem_alloc_n_size_large);
+    g_test_add_func("/mem/alloc-n/subprocess/nmemb-0",
+                    test_mem_alloc_n_nmemb_0);
+    g_test_add_func("/mem/alloc-n/subprocess/nmemb-large",
+                    test_mem_alloc_n_nmemb_large);
+    g_test_add_func("/mem/alloc-n/subprocess/size-nmemb-0",
+                    test_mem_alloc_n_size_nmemb_0);
+    g_test_add_func("/mem/alloc-n/subprocess/size-nmemb-large",
+                    test_mem_alloc_n_size_nmemb_large);
     g_test_add_func("/mem/clear", test_mem_clear);
     g_test_add_func("/mem/ptr-array-unref", test_mem_ptr_array_unref);
     g_test_add_func("/mem/ptr-array-destroy", test_mem_ptr_array_destroy);

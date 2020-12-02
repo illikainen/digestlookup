@@ -27,6 +27,27 @@ void *dlp_mem_alloc(rsize_t size)
 }
 
 /**
+ * Allocate a region of zero-initialized memory.
+ *
+ * This is a stricter version of g_malloc0_n().  The main difference is that
+ * g_error() is invoked if either `size` or `nmemb` is 0 or unreasonably large,
+ * unlike g_malloc0_n() which returns NULL if the product of its arguments is 0.
+ * Similar to g_malloc0_n(), g_error() is also invoked if the allocation fails.
+ *
+ * @param size  Size of each element.
+ * @param nmemb Number of elements to allocate.
+ * @return A pointer to the allocated memory.
+ */
+void *dlp_mem_alloc_n(rsize_t size, rsize_t nmemb)
+{
+    if (size == 0 || size >= RSIZE_MAX || nmemb == 0 || nmemb >= RSIZE_MAX) {
+        g_error("invalid size (%zu * %zu)", size, nmemb);
+    }
+
+    return g_malloc0_n(nmemb, size);
+}
+
+/**
  * Decrease the refcount and clear the pointer to a GPtrArray.
  *
  * This function is created in similar spirit to g_clear_pointer(), whereas
