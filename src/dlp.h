@@ -12,12 +12,14 @@
 #define DLP_BUFSIZ MIN(8192, MIN(SIZE_MAX, SSIZE_MAX))
 
 #if defined(__clang__) || defined(__GNUC__)
+#    define DLP_MALLOC __attribute__((malloc))
 #    define DLP_ALLOC_SIZE(n) __attribute__((alloc_size(n)))
 #    define DLP_ALLOC_SIZE_2(n, m) __attribute__((alloc_size(n, m)))
 #    define DLP_NODISCARD __attribute__((warn_unused_result))
 #    define DLP_CONSTRUCTOR __attribute__((constructor))
 #    define DLP_DESTRUCTOR __attribute__((destructor))
 #else
+#    define DLP_MALLOC
 #    define DLP_ALLOC_SIZE(n)
 #    define DLP_ALLOC_SIZE_2(n, m)
 #    define DLP_NODISCARD
