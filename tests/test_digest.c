@@ -426,6 +426,25 @@ static void test_digest_cmp_hex(gpointer data, gconstpointer user_data)
         g_assert_false(rv);
         g_clear_error(&err);
         g_variant_dict_unref(v);
+
+        /*
+         * Missing EOF.
+         */
+        g_assert_true(dlp_fs_seek(fd, 0, SEEK_SET, NULL));
+        g_assert_true(dlp_fs_truncate(fd, 0, NULL));
+        g_assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "rv", "i", 1);
+        test_wrap_push(read, true, v);
+        test_wrap_push(read, false, NULL);
+        rv = dlp_digest_cmp(fd, G_CHECKSUM_SHA256, DLP_DIGEST_ENCODE_HEX,
+                            "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f9"
+                            "8a5e886266e7ae",
+                            &err);
+        g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_EOF);
+        g_assert_false(rv);
+        g_clear_error(&err);
+        g_variant_dict_unref(v);
     }
 
     g_assert_true(dlp_fs_close(&fd, NULL));

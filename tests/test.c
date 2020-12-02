@@ -185,8 +185,9 @@ ssize_t __wrap_read(int fd, void *buf, size_t len)
     struct test_wrap elt = { 0 };
 
     if (test_wrap_pop(&elt) && elt.wrap) {
-        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno) &&
-            g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
+        g_variant_dict_lookup(elt.value, "errno", "i", &errno);
+
+        if (g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
             return rv;
         }
 

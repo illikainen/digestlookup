@@ -112,7 +112,9 @@ bool dlp_digest_compute(int fd, GChecksumType type, enum dlp_digest_encode enc,
 static bool dlp_digest_update(GChecksum *cksum, int fd, size_t size,
                               GError **error)
 {
-    guchar buf[MIN(SIZE_MAX, BUFSIZ)];
+    size_t len;
+    gssize cklen;
+    guchar buf[MAX(1, MIN(SIZE_MAX, BUFSIZ))];
 
     g_return_val_if_fail(cksum != NULL && fd >= 0, false);
 
@@ -122,8 +124,7 @@ static bool dlp_digest_update(GChecksum *cksum, int fd, size_t size,
      * for empty messages).
      */
     while (size != 0) {
-        gssize cklen;
-        size_t len = MIN(sizeof(buf), size);
+        len = MIN(sizeof(buf), size);
 
         if (!dlp_fs_read_bytes(fd, buf, len, error)) {
             return false;
@@ -136,6 +137,12 @@ static bool dlp_digest_update(GChecksum *cksum, int fd, size_t size,
 
         g_checksum_update(cksum, buf, cklen);
         size -= len;
+    }
+
+    if (!dlp_fs_read(fd, buf, 1, &len, NULL) || len != 0) {
+        g_set_error(error, DLP_ERROR, DLP_DIGEST_ERROR_EOF, "%s",
+                    _("expected EOF"));
+        return false;
     }
 
     return size == 0;

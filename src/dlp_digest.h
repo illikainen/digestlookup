@@ -19,6 +19,7 @@ enum dlp_digest_error {
     DLP_DIGEST_ERROR_ENCODE,
     DLP_DIGEST_ERROR_MISMATCH,
     DLP_DIGEST_ERROR_TRUNCATED,
+    DLP_DIGEST_ERROR_EOF,
 };
 
 enum dlp_digest_encode {
