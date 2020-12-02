@@ -152,6 +152,24 @@ void dlp_curl_free(CURL **easy)
 }
 
 /**
+ * Free the memory associated with a curl easy handle.
+ *
+ * This function is declared with a gpointer to avoid undefined behavior if
+ * it's used as a GDestroyNotify function pointer.
+ *
+ * Because it takes a void pointer it should only be used as a GDestroyNotify
+ * callback.  Prefer dlp_curl_free() for other use cases.
+ */
+void dlp_curl_destroy(gpointer ptr)
+{
+    CURL *easy = ptr;
+
+    if (easy != NULL) {
+        dlp_curl_free(&easy);
+    }
+}
+
+/**
  * Perform one or more requests.
  *
  * The requests are performed with the multi interface.  This function blocks

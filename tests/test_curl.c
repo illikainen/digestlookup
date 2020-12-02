@@ -152,6 +152,29 @@ static void test_curl_free(void **state)
     assert_null(curl);
 }
 
+static void test_curl_destroy(void **state)
+{
+    CURL *curl = NULL;
+    GList *l = NULL;
+
+    (void)state;
+
+    dlp_curl_destroy(NULL);
+    dlp_curl_destroy(curl);
+
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_non_null(curl);
+    dlp_curl_destroy(curl);
+
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_non_null(curl);
+    l = g_list_prepend(l, curl);
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_non_null(curl);
+    l = g_list_prepend(l, curl);
+    g_list_free_full(l, dlp_curl_destroy);
+}
+
 static void test_success(void **state)
 {
     gchar *url;
@@ -698,6 +721,7 @@ int main(void)
         cmocka_unit_test(test_global_init),
         cmocka_unit_test(test_init),
         cmocka_unit_test(test_curl_free),
+        cmocka_unit_test(test_curl_destroy),
         cmocka_unit_test_setup_teardown(test_success, setup, teardown),
         cmocka_unit_test_setup_teardown(test_bad_ca, setup, teardown),
         cmocka_unit_test_setup_teardown(test_bad_fqdn, setup, teardown),
