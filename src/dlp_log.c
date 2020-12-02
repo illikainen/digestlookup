@@ -279,7 +279,9 @@ static void dlp_log_handler(const gchar *domain, GLogLevelFlags level,
 {
     (void)data;
 
-    g_log_structured(domain, level, "MESSAGE", "%s", msg);
+    if (domain != NULL && msg != NULL) {
+        g_log_structured(domain, level, "MESSAGE", "%s", msg);
+    }
 }
 
 /**
