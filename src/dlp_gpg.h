@@ -30,6 +30,8 @@ bool dlp_gpg_init(struct dlp_gpg **gpg, GError **error) DLP_NODISCARD;
 bool dlp_gpg_free(struct dlp_gpg **gpg, GError **error) DLP_NODISCARD;
 bool dlp_gpg_import_key(struct dlp_gpg *gpg, const char *path,
                         gpgme_validity_t trust, GError **error) DLP_NODISCARD;
+bool dlp_gpg_import_keys(struct dlp_gpg *gpg, const GPtrArray *paths,
+                         gpgme_validity_t trust, GError **error) DLP_NODISCARD;
 bool dlp_gpg_check_keyring(struct dlp_gpg *gpg, rsize_t *count,
                            GError **error) DLP_NODISCARD;
 bool dlp_gpg_verify_attached(struct dlp_gpg *gpg, int msgfd, int outfd,

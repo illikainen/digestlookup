@@ -472,6 +472,91 @@ static void test_gpg_import_key(gpointer data, gconstpointer user_data)
     }
 }
 
+static void test_gpg_import_keys(gpointer data, gconstpointer user_data)
+{
+    GPtrArray *arr;
+    char *missing_path;
+    char *bogus_path;
+    rsize_t keys;
+    bool rv;
+    struct dlp_gpg *gpg = NULL;
+    GError *err = NULL;
+    struct state *s = data;
+
+    (void)user_data;
+
+    /*
+     * Create missing file path.
+     */
+    missing_path = g_build_filename(s->home, "missing-key", NULL);
+
+    /*
+     * Create bogus key.
+     */
+    bogus_path = g_build_filename(s->home, "bogus-key", NULL);
+    g_assert_true(g_file_set_contents(bogus_path, "foobar", -1, NULL));
+
+    /*
+     * Import with one missing key.
+     */
+    g_assert_true(dlp_gpg_init(&gpg, NULL));
+    arr = g_ptr_array_new();
+    g_ptr_array_add(arr, s->ed25519.pub);
+    g_ptr_array_add(arr, missing_path);
+    rv = dlp_gpg_import_keys(gpg, arr, GPGME_VALIDITY_ULTIMATE, &err);
+    g_assert_error(err, DLP_ERROR, ENOENT);
+    g_assert_false(rv);
+    g_clear_error(&err);
+    g_ptr_array_unref(arr);
+    g_assert_true(dlp_gpg_free(&gpg, NULL));
+
+    /*
+     * Import with one bogus key.
+     */
+    g_assert_true(dlp_gpg_init(&gpg, NULL));
+    arr = g_ptr_array_new();
+    g_ptr_array_add(arr, s->ed25519.pub);
+    g_ptr_array_add(arr, bogus_path);
+    rv = dlp_gpg_import_keys(gpg, arr, GPGME_VALIDITY_ULTIMATE, &err);
+    g_assert_error(err, DLP_ERROR, GPG_ERR_BAD_KEY);
+    g_assert_false(rv);
+    g_clear_error(&err);
+    g_ptr_array_unref(arr);
+    g_assert_true(dlp_gpg_free(&gpg, NULL));
+
+    /*
+     * Import with one good key.
+     */
+    g_assert_true(dlp_gpg_init(&gpg, NULL));
+    arr = g_ptr_array_new();
+    g_ptr_array_add(arr, s->ed25519.pub);
+    rv = dlp_gpg_import_keys(gpg, arr, GPGME_VALIDITY_ULTIMATE, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_true(dlp_gpg_check_keyring(gpg, &keys, NULL));
+    g_assert_cmpuint(keys, ==, 1);
+    g_ptr_array_unref(arr);
+    g_assert_true(dlp_gpg_free(&gpg, NULL));
+
+    /*
+     * Import with multiple good keys.
+     */
+    g_assert_true(dlp_gpg_init(&gpg, NULL));
+    arr = g_ptr_array_new();
+    g_ptr_array_add(arr, s->ed25519.pub);
+    g_ptr_array_add(arr, s->rsa4096.pub);
+    rv = dlp_gpg_import_keys(gpg, arr, GPGME_VALIDITY_ULTIMATE, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_true(dlp_gpg_check_keyring(gpg, &keys, NULL));
+    g_assert_cmpuint(keys, ==, 2);
+    g_ptr_array_unref(arr);
+    g_assert_true(dlp_gpg_free(&gpg, NULL));
+
+    dlp_mem_free(&missing_path);
+    dlp_mem_free(&bogus_path);
+}
+
 static void test_gpg_check_keyring(gpointer data, gconstpointer user_data)
 {
     size_t count = 123;
@@ -1110,6 +1195,8 @@ int main(int argc, char **argv)
                       test_gpg_set_error, teardown);
     g_test_add_vtable("/gpg/import-key", sizeof(struct state), NULL, setup,
                       test_gpg_import_key, teardown);
+    g_test_add_vtable("/gpg/import-keys", sizeof(struct state), NULL, setup,
+                      test_gpg_import_keys, teardown);
     g_test_add_vtable("/gpg/check/keyring", sizeof(struct state), NULL, setup,
                       test_gpg_check_keyring, teardown);
     g_test_add_vtable("/gpg/verify/attached", sizeof(struct state), NULL, setup,

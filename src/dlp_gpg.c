@@ -274,6 +274,33 @@ out:
 }
 
 /**
+ * Import an array of keys to the keyring.
+ *
+ * See dlp_gpg_import_key().
+ *
+ * @param gpg   GPG context.
+ * @param paths Keys to import.
+ * @param trust Trust level to set for the keys.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_gpg_import_keys(struct dlp_gpg *gpg, const GPtrArray *paths,
+                         gpgme_validity_t trust, GError **error)
+{
+    guint i;
+
+    g_return_val_if_fail(gpg != NULL && paths != NULL, false);
+
+    for (i = 0; i < paths->len; i++) {
+        if (!dlp_gpg_import_key(gpg, paths->pdata[i], trust, error)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * Check that the keyring is in a good state.
  *
  * @param gpg   GPG context.
