@@ -12,14 +12,18 @@
 #include <glib.h>
 
 #include "dlp.h"
+#include "dlp_cfg.h"
 
 enum dlp_backend_error {
     DLP_BACKEND_ERROR_NOT_FOUND = 1,
 };
 
+struct dlp_cfg_repo;
+
 struct dlp_backend {
     const char *name;
-    bool (*lookup)(char **pkgs, GError **error);
+    bool (*lookup)(const struct dlp_cfg_repo *cfg, const GPtrArray *pkgs,
+                   GError **error);
 };
 
 void dlp_backend_add(struct dlp_backend *be);
