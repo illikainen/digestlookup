@@ -175,7 +175,7 @@ static void test_curl_destroy(void **state)
     g_list_free_full(l, dlp_curl_destroy);
 }
 
-static void test_success(void **state)
+static void test_success_array(void **state)
 {
     gchar *url;
     GError *err = NULL;
@@ -197,6 +197,113 @@ static void test_success(void **state)
     assert_null(err);
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
     dlp_curl_free(&curl[0]);
+
+    dlp_mem_free(&url);
+}
+
+static void test_success_array_direct(void **state)
+{
+    gchar *url;
+    GError *err = NULL;
+    struct state *s = *state;
+    CURL *curl[2] = { NULL };
+
+    assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
+                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+
+    url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
+    assert_true(dlp_curl_init(&curl[0], NULL));
+    assert_true(dlp_curl_set(curl[0], CURLOPT_URL, url));
+    assert_true(dlp_curl_set(curl[0], CURLOPT_CAINFO, s->cert));
+    assert_true(dlp_curl_set(curl[0], CURLOPT_PINNEDPUBLICKEY, s->sha256));
+    assert_true(dlp_curl_set(curl[0], CURLOPT_USERAGENT, "agent"));
+    assert_true(dlp_curl_set(curl[0], CURLOPT_WRITEDATA, &s->tmp[0].fd));
+
+    assert_true(dlp_curl_perform_array(curl, &err));
+    assert_null(err);
+    TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
+    dlp_curl_free(&curl[0]);
+
+    dlp_mem_free(&url);
+}
+
+static void test_success_ptr_array(void **state)
+{
+    gchar *url;
+    GPtrArray *array;
+    CURL *curl;
+    GError *err = NULL;
+    struct state *s = *state;
+
+    assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
+                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+
+    array = g_ptr_array_new_full(0, dlp_curl_destroy);
+    url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_true(dlp_curl_set(curl, CURLOPT_URL, url));
+    assert_true(dlp_curl_set(curl, CURLOPT_CAINFO, s->cert));
+    assert_true(dlp_curl_set(curl, CURLOPT_PINNEDPUBLICKEY, s->sha256));
+    assert_true(dlp_curl_set(curl, CURLOPT_USERAGENT, "agent"));
+    assert_true(dlp_curl_set(curl, CURLOPT_WRITEDATA, &s->tmp[0].fd));
+    g_ptr_array_add(array, curl);
+
+    assert_true(dlp_curl_perform(array, &err));
+    assert_null(err);
+    TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
+
+    dlp_mem_free(&url);
+    g_ptr_array_unref(array);
+}
+
+static void test_success_one(void **state)
+{
+    gchar *url;
+    GError *err = NULL;
+    struct state *s = *state;
+    CURL *curl;
+
+    assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
+                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+
+    url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_true(dlp_curl_set(curl, CURLOPT_URL, url));
+    assert_true(dlp_curl_set(curl, CURLOPT_CAINFO, s->cert));
+    assert_true(dlp_curl_set(curl, CURLOPT_PINNEDPUBLICKEY, s->sha256));
+    assert_true(dlp_curl_set(curl, CURLOPT_USERAGENT, "agent"));
+    assert_true(dlp_curl_set(curl, CURLOPT_WRITEDATA, &s->tmp[0].fd));
+
+    assert_true(dlp_curl_perform(curl, &err));
+    assert_null(err);
+    TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
+    dlp_curl_free(&curl);
+
+    dlp_mem_free(&url);
+}
+
+static void test_success_one_direct(void **state)
+{
+    gchar *url;
+    GError *err = NULL;
+    struct state *s = *state;
+    CURL *curl;
+
+    assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
+                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+
+    url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
+    assert_true(dlp_curl_init(&curl, NULL));
+    assert_true(dlp_curl_set(curl, CURLOPT_URL, url));
+    assert_true(dlp_curl_set(curl, CURLOPT_CAINFO, s->cert));
+    assert_true(dlp_curl_set(curl, CURLOPT_PINNEDPUBLICKEY, s->sha256));
+    assert_true(dlp_curl_set(curl, CURLOPT_USERAGENT, "agent"));
+    assert_true(dlp_curl_set(curl, CURLOPT_WRITEDATA, &s->tmp[0].fd));
+
+    assert_true(dlp_curl_perform_one(curl, &err));
+    assert_null(err);
+    TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "foobar");
+    dlp_curl_free(&curl);
 
     dlp_mem_free(&url);
 }
@@ -389,7 +496,7 @@ static void test_head_mtime(void **state)
     dlp_mem_free(&url);
 }
 
-static void test_multi_success(void **state)
+static void test_multi_success_array(void **state)
 {
     size_t i;
     GError *err = NULL;
@@ -425,6 +532,48 @@ static void test_multi_success(void **state)
         TEST_ASSERT_FD_CONTENT(s->tmp[i].fd, "content-%zu", i);
         dlp_curl_free(&curl[i]);
     }
+}
+
+static void test_multi_success_ptr_array(void **state)
+{
+    size_t i;
+    GPtrArray *array;
+    CURL *curl;
+    GError *err = NULL;
+    struct state *s = *state;
+
+    array = g_ptr_array_new_full(0, dlp_curl_destroy);
+
+    for (i = 0; i < G_N_ELEMENTS(s->tmp); i++) {
+        gchar *path = g_strdup_printf("/test-multi-success-%zu", i);
+        gchar *url = g_strdup_printf("https://%s:%u%s", s->host, s->port, path);
+        gchar *agent = g_strdup_printf("agent-%zu", i);
+        gchar *content = g_strdup_printf("content-%zu", i);
+
+        assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
+                                        content, 0, MHD_HTTP_OK, NULL));
+
+        assert_true(dlp_curl_init(&curl, NULL));
+        assert_true(dlp_curl_set(curl, CURLOPT_URL, url));
+        assert_true(dlp_curl_set(curl, CURLOPT_CAINFO, s->cert));
+        assert_true(dlp_curl_set(curl, CURLOPT_PINNEDPUBLICKEY, s->sha256));
+        assert_true(dlp_curl_set(curl, CURLOPT_USERAGENT, agent));
+        assert_true(dlp_curl_set(curl, CURLOPT_WRITEDATA, &s->tmp[i].fd));
+        g_ptr_array_add(array, curl);
+
+        dlp_mem_free(&path);
+        dlp_mem_free(&url);
+        dlp_mem_free(&agent);
+        dlp_mem_free(&content);
+    }
+
+    assert_true(dlp_curl_perform(array, &err));
+    assert_null(err);
+
+    for (i = 0; i < TEST_ARRAY_LEN(s->tmp); i++) {
+        TEST_ASSERT_FD_CONTENT(s->tmp[i].fd, "content-%zu", i);
+    }
+    g_ptr_array_unref(array);
 }
 
 static void test_multi_bad_ca(void **state)
@@ -722,7 +871,16 @@ int main(void)
         cmocka_unit_test(test_init),
         cmocka_unit_test(test_curl_free),
         cmocka_unit_test(test_curl_destroy),
-        cmocka_unit_test_setup_teardown(test_success, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_success_array, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_success_array_direct, setup,
+                                        teardown),
+        cmocka_unit_test_setup_teardown(test_success_ptr_array, setup,
+                                        teardown),
+        cmocka_unit_test_setup_teardown(test_success_one, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_success_one_direct, setup,
+                                        teardown),
+        cmocka_unit_test_setup_teardown(test_success_array_direct, setup,
+                                        teardown),
         cmocka_unit_test_setup_teardown(test_bad_ca, setup, teardown),
         cmocka_unit_test_setup_teardown(test_bad_fqdn, setup, teardown),
         cmocka_unit_test_setup_teardown(test_bad_pin, setup, teardown),
@@ -730,7 +888,10 @@ int main(void)
         cmocka_unit_test_setup_teardown(test_404, setup, teardown),
         cmocka_unit_test_setup_teardown(test_get_mtime, setup, teardown),
         cmocka_unit_test_setup_teardown(test_head_mtime, setup, teardown),
-        cmocka_unit_test_setup_teardown(test_multi_success, setup, teardown),
+        cmocka_unit_test_setup_teardown(test_multi_success_array, setup,
+                                        teardown),
+        cmocka_unit_test_setup_teardown(test_multi_success_ptr_array, setup,
+                                        teardown),
         cmocka_unit_test_setup_teardown(test_multi_bad_ca, setup, teardown),
         cmocka_unit_test_setup_teardown(test_multi_bad_fqdn, setup, teardown),
         cmocka_unit_test_setup_teardown(test_multi_bad_pin, setup, teardown),

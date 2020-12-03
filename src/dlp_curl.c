@@ -28,9 +28,10 @@ struct dlp_curl_private {
     char errbuf[CURL_ERROR_SIZE];
 };
 
-static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
-                                GError **error) DLP_NODISCARD;
-static bool dlp_curl_multi_free(CURLM *multi, CURL **easy) DLP_NODISCARD;
+static bool dlp_curl_multi_init(CURLM **multi, const GPtrArray *easy,
+                                int *handles, GError **error) DLP_NODISCARD;
+static bool dlp_curl_multi_free(CURLM *multi,
+                                const GPtrArray *easy) DLP_NODISCARD;
 static bool dlp_curl_multi_check_result(CURLM *multi,
                                         GError **error) DLP_NODISCARD;
 
@@ -170,23 +171,79 @@ void dlp_curl_destroy(gpointer ptr)
 }
 
 /**
+ * Perform a blocking request on a curl handle.
+ *
+ * The dlp_curl_perform() generic macro may be used to invoke this function.
+ *
+ * @param easy  A handle to perform the request on.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_curl_perform_one(CURL *easy, GError **error)
+{
+    GPtrArray *array;
+    bool rv;
+
+    g_return_val_if_fail(easy != NULL, false);
+
+    array = g_ptr_array_new();
+    g_ptr_array_add(array, easy);
+    rv = dlp_curl_perform_parray(array, error);
+    g_ptr_array_unref(array);
+
+    return rv;
+}
+
+/**
  * Perform one or more requests.
  *
  * The requests are performed with the multi interface.  This function blocks
- * until every request has finished successfully or until the first error
+ * until every request has finished successfully or until the first error is
  * encountered.
+ *
+ * The dlp_curl_perform() generic macro may be used to invoke this function.
  *
  * @param easy  NULL-terminated array of handles to perform requests on.
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
-bool dlp_curl_perform(CURL **easy, GError **error)
+bool dlp_curl_perform_array(CURL **easy, GError **error)
+{
+    GPtrArray *array;
+    bool rv;
+
+    g_return_val_if_fail(easy != NULL && *easy != NULL, false);
+
+    array = g_ptr_array_new();
+    for (; *easy != NULL; easy++) {
+        g_ptr_array_add(array, *easy);
+    }
+
+    rv = dlp_curl_perform_parray(array, error);
+    g_ptr_array_unref(array);
+    return rv;
+}
+
+/**
+ * Perform one or more requests.
+ *
+ * The requests are performed with the multi interface.  This function blocks
+ * until every request has finished successfully or until the first error is
+ * encountered.
+ *
+ * The dlp_curl_perform() generic macro may be used to invoke this function.
+ *
+ * @param easy  A GPtrArray with handles to perform requests on.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_curl_perform_parray(const GPtrArray *easy, GError **error)
 {
     CURLM *multi;
     CURLMcode mc;
     int handles = 0;
 
-    g_return_val_if_fail(easy != NULL && *easy != NULL, false);
+    g_return_val_if_fail(easy != NULL && easy->len != 0, false);
 
     if (!dlp_curl_multi_init(&multi, easy, &handles, error)) {
         return false;
@@ -255,22 +312,19 @@ size_t dlp_curl_write_fd(char *ptr, size_t size, size_t nmemb, void *data)
  * dlp_curl_multi_free() after use.
  *
  * @param multi     Handle to initialize.
- * @param easy      NULL-terminated array of easy handles to associate with
- *                  the multi handle.
+ * @param easy      A GPtrArray with easy handles to associate with the multi
+ *                  handle.
  * @param handles   Number of easy handles associated with the multi handle.
  * @param error     Optional error information.
  * @return True on success and false on failure.
  */
-static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
-                                GError **error)
+static bool dlp_curl_multi_init(CURLM **multi, const GPtrArray *easy,
+                                int *handles, GError **error)
 {
-    CURLMcode mc;
-    CURL *const *e;
     CURLM *m;
-    struct dlp_curl_private *priv;
-    int count; /* int to match the type of curl_multi_perform() */
+    guint i;
 
-    g_return_val_if_fail(easy != NULL && multi != NULL && handles != NULL,
+    g_return_val_if_fail(multi != NULL && easy != NULL && handles != NULL,
                          false);
     *multi = NULL;
     *handles = 0;
@@ -281,32 +335,35 @@ static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
         return false;
     }
 
-    for (count = 0, e = easy; *e != NULL; e++) {
-        if (!dlp_curl_info(*e, CURLINFO_PRIVATE, &priv) || priv == NULL) {
+    for (i = 0; i < easy->len; i++) {
+        struct dlp_curl_private *priv;
+        CURLMcode mc;
+        CURL *e = easy->pdata[i];
+
+        if (!dlp_curl_info(e, CURLINFO_PRIVATE, &priv) || priv == NULL) {
             DLP_DISCARD(dlp_curl_multi_free(m, easy));
             g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
                         _("unknown easy handle"));
             return false;
         }
 
-        if ((mc = curl_multi_add_handle(m, *e)) != CURLM_OK) {
+        if ((mc = curl_multi_add_handle(m, e)) != CURLM_OK) {
             DLP_DISCARD(dlp_curl_multi_free(m, easy));
             g_set_error(error, DLP_ERROR, mc, "%s", curl_multi_strerror(mc));
             return false;
         }
 
         priv->multi = m;
+    }
 
-        if (dlp_overflow_add(count, 1, &count)) {
-            DLP_DISCARD(dlp_curl_multi_free(m, easy));
-            g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
-                        g_strerror(EOVERFLOW));
-            return false;
-        }
+    if (dlp_overflow_add(i, 0, handles)) {
+        DLP_DISCARD(dlp_curl_multi_free(m, easy));
+        g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
+                    g_strerror(EOVERFLOW));
+        return false;
     }
 
     *multi = m;
-    *handles = count;
     return true;
 }
 
@@ -317,22 +374,24 @@ static bool dlp_curl_multi_init(CURLM **multi, CURL **easy, int *handles,
  * from the multi handle.
  *
  * @param multi Handle whose resources should be deallocated.
- * @param easy  NULL-terminated array of easy handles to disassociate from the
- *              multi handle.
+ * @param easy  GPtrArray with easy handles to disassociate from the multi
+ *              handle.
  * @return True on success and false on failure.
  */
-static bool dlp_curl_multi_free(CURLM *multi, CURL **easy)
+static bool dlp_curl_multi_free(CURLM *multi, const GPtrArray *easy)
 {
-    CURL **e;
-    struct dlp_curl_private *priv;
+    guint i;
     size_t errors = 0;
 
     g_return_val_if_fail(multi != NULL && easy != NULL, false);
 
-    for (e = easy; *e != NULL; e++) {
-        if (dlp_curl_info(*e, CURLINFO_PRIVATE, &priv) && priv != NULL) {
+    for (i = 0; i < easy->len; i++) {
+        struct dlp_curl_private *priv;
+        CURL *e = easy->pdata[i];
+
+        if (dlp_curl_info(e, CURLINFO_PRIVATE, &priv) && priv != NULL) {
             if (priv->multi == multi) {
-                errors += curl_multi_remove_handle(multi, *e) != CURLM_OK;
+                errors += curl_multi_remove_handle(multi, e) != CURLM_OK;
                 priv->multi = NULL;
             } else if (priv->multi != NULL) {
                 errors += 1;

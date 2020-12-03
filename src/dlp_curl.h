@@ -20,6 +20,13 @@
 #define dlp_curl_info(easy, info, value)                                       \
     (curl_easy_getinfo(easy, info, value) == CURLE_OK)
 
+#define dlp_curl_perform(easy, error)                                          \
+    _Generic((easy),                                                           \
+        CURL *: dlp_curl_perform_one,                                          \
+        CURL **: dlp_curl_perform_array,                                       \
+        GPtrArray *: dlp_curl_perform_parray                                   \
+    )(easy, error)
+
 enum dlp_curl_error {
     DLP_CURL_ERROR_FAILED = 1,
 };
@@ -28,7 +35,10 @@ bool dlp_curl_global_init(GError **error) DLP_NODISCARD;
 bool dlp_curl_init(CURL **easy, GError **error) DLP_NODISCARD;
 void dlp_curl_free(CURL **easy);
 void dlp_curl_destroy(gpointer ptr);
-bool dlp_curl_perform(CURL **easy, GError **error) DLP_NODISCARD;
+bool dlp_curl_perform_one(CURL *easy, GError **error) DLP_NODISCARD;
+bool dlp_curl_perform_array(CURL **easy, GError **error) DLP_NODISCARD;
+bool dlp_curl_perform_parray(const GPtrArray *easy,
+                             GError **error) DLP_NODISCARD;
 size_t dlp_curl_write_fd(char *ptr, size_t size, size_t nmemb,
                          void *data) DLP_NODISCARD;
 
