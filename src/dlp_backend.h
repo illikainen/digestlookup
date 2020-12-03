@@ -13,7 +13,7 @@
 
 #include "dlp.h"
 
-enum dlp_curl_error {
+enum dlp_backend_error {
     DLP_BACKEND_ERROR_NOT_FOUND = 1,
 };
 
