@@ -69,6 +69,7 @@ static void test_cfg_free(gpointer data, gconstpointer user_data)
 
 static void test_cfg_read(gpointer data, gconstpointer user_data)
 {
+    time_t t;
     bool rv;
     GList *l;
     struct dlp_cfg *cfg;
@@ -290,6 +291,19 @@ static void test_cfg_read(gpointer data, gconstpointer user_data)
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
     assert_int_equal(chmod(dir, S_IRWXU), 0);
     dlp_mem_free(&dir);
+
+    /* Invalid cache. */
+    if (dlp_overflow_add(G_MAXUINT64, 0, &t)) {
+        str = g_strdup_printf("[debian-stable]\ncache=%" G_GUINT64_FORMAT,
+                              G_MAXUINT64);
+        g_assert_true(g_file_set_contents(path, str, -1, NULL));
+        rv = dlp_cfg_read(path, &cfg, &err);
+        g_assert_error(err, DLP_ERROR, EOVERFLOW);
+        g_assert_false(rv);
+        g_assert_null(cfg);
+        g_clear_error(&err);
+        dlp_mem_free(&str);
+    }
 
     if (test_wrap_p()) {
         /* Bad load. */

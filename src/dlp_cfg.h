@@ -8,6 +8,7 @@
 #define DLP_CFG_H
 
 #include <stdbool.h>
+#include <time.h>
 
 #include <glib.h>
 
@@ -27,7 +28,7 @@ struct dlp_cfg_repo {
     char *tls_key;
     char *user_agent;
     GPtrArray *verify_keys;
-    guint64 cache;
+    time_t cache;
 };
 
 struct dlp_cfg {

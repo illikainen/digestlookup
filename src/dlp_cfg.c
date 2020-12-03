@@ -6,10 +6,13 @@
 
 #include "dlp_cfg.h"
 
+#include <errno.h>
+
 #include "config.h"
 #include "dlp_error.h"
 #include "dlp_fs.h"
 #include "dlp_mem.h"
+#include "dlp_overflow.h"
 #include "dlp_resource.h"
 
 struct dlp_cfg_setting {
@@ -41,6 +44,9 @@ static bool dlp_cfg_get_strings(GKeyFile *kf, const char *group,
 static bool dlp_cfg_get_uint64(GKeyFile *kf, const char *group, const char *key,
                                const void *fallback, void *dst,
                                GError **error) DLP_NODISCARD;
+static bool dlp_cfg_get_time(GKeyFile *kf, const char *group, const char *key,
+                             const void *fallback, void *dst,
+                             GError **error) DLP_NODISCARD;
 static bool dlp_cfg_get_files(GKeyFile *kf, const char *group, const char *key,
                               const void *fallback, void *dst,
                               GError **error) DLP_NODISCARD;
@@ -84,8 +90,8 @@ static const struct dlp_cfg_setting dlp_cfg_repo_settings[] = {
       .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, verify_keys),
       .required = true },
     { .key = "cache",
-      .get = dlp_cfg_get_uint64,
-      .fallback = GUINT_TO_POINTER(24),
+      .get = dlp_cfg_get_time,
+      .fallback = GUINT_TO_POINTER(86400),
       .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, cache),
       .required = false },
 };
@@ -445,6 +451,38 @@ static bool dlp_cfg_get_uint64(GKeyFile *kf, const char *group, const char *key,
         }
         g_clear_error(&err);
         *n = GPOINTER_TO_UINT(fallback);
+    }
+
+    return true;
+}
+
+/**
+ * Read a time_t from the configuration.
+ *
+ * @param kf        Config settings.
+ * @param group     Group to read from.
+ * @param key       Key to read.
+ * @param fallback  Optional value to use if the key doesn't exist.
+ * @param dst       Destination for the config value.
+ * @param error     Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_cfg_get_time(GKeyFile *kf, const char *group, const char *key,
+                             const void *fallback, void *dst, GError **error)
+{
+    guint64 n;
+    time_t *t = dst;
+
+    g_return_val_if_fail(kf != NULL && group != NULL, false);
+    g_return_val_if_fail(key != NULL && dst != NULL, false);
+
+    if (!dlp_cfg_get_uint64(kf, group, key, fallback, &n, error)) {
+        return false;
+    }
+
+    if (dlp_overflow_add(n, 0, t)) {
+        g_set_error(error, DLP_ERROR, EOVERFLOW, "%s", g_strerror(EOVERFLOW));
+        return false;
     }
 
     return true;
