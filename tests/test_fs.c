@@ -1476,6 +1476,146 @@ static void test_truncate(void **state)
     assert_true(dlp_fs_close(&fd, NULL));
 }
 
+static void test_copy(void **state)
+{
+    int infd;
+    int outfd;
+    size_t size;
+    char buf[DLP_BUFSIZ] = { 0 };
+    bool rv;
+    GError *err = NULL;
+
+    (void)state;
+
+    assert_true(dlp_fs_mkstemp(&infd, NULL));
+    assert_true(dlp_fs_mkstemp(&outfd, NULL));
+
+    /*
+     * Success from infd position 0.
+     */
+    assert_true(dlp_fs_write_bytes(infd, "foo", 3, NULL));
+    assert_true(dlp_fs_seek(infd, 0, SEEK_SET, NULL));
+    rv = dlp_fs_copy(infd, outfd, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_true(dlp_fs_read_bytes(outfd, buf, 3, NULL));
+    assert_true(dlp_fs_size(outfd, &size, NULL));
+    assert_int_equal(size, 3);
+    assert_memory_equal(buf, "foo", size);
+
+    /*
+     * Success from infd EOF.
+     */
+    assert_true(dlp_fs_write_bytes(infd, "bar", 3, NULL));
+    assert_true(dlp_fs_seek(infd, 0, SEEK_END, NULL));
+    rv = dlp_fs_copy(infd, outfd, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_true(dlp_fs_read_bytes(outfd, buf, 3, NULL));
+    assert_true(dlp_fs_size(outfd, &size, NULL));
+    assert_int_equal(size, 3);
+    assert_memory_equal(buf, "bar", size);
+
+    /*
+     * Success with old content at outfd position 0.
+     */
+    assert_true(dlp_fs_write_bytes(infd, "baz", 3, NULL));
+    assert_true(dlp_fs_write_bytes(outfd, "foobarbazqux", 12, NULL));
+    assert_true(dlp_fs_seek(outfd, 0, SEEK_SET, NULL));
+    rv = dlp_fs_copy(infd, outfd, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_true(dlp_fs_read_bytes(outfd, buf, 3, NULL));
+    assert_true(dlp_fs_size(outfd, &size, NULL));
+    assert_int_equal(size, 3);
+    assert_memory_equal(buf, "baz", size);
+
+    /*
+     * Success with old content at outfd EOF.
+     */
+    assert_true(dlp_fs_write_bytes(infd, "baz", 3, NULL));
+    assert_true(dlp_fs_write_bytes(outfd, "foobarbazqux", 12, NULL));
+    assert_true(dlp_fs_seek(outfd, 0, SEEK_END, NULL));
+    rv = dlp_fs_copy(infd, outfd, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_true(dlp_fs_read_bytes(outfd, buf, 3, NULL));
+    assert_true(dlp_fs_size(outfd, &size, NULL));
+    assert_int_equal(size, 3);
+    assert_memory_equal(buf, "baz", size);
+
+    if (test_wrap_p()) {
+        GVariantDict *v;
+
+        /*
+         * Failed initial seek.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        test_wrap_push(lseek64, true, v);
+        assert_true(dlp_fs_write_bytes(infd, "foo", 3, NULL));
+        rv = dlp_fs_copy(infd, outfd, &err);
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_false(rv);
+        g_variant_dict_unref(v);
+
+        /*
+         * Failed read().
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(read, true, v);
+        assert_true(dlp_fs_write_bytes(infd, "foo", 3, NULL));
+        rv = dlp_fs_copy(infd, outfd, &err);
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_false(rv);
+        g_variant_dict_unref(v);
+
+        /*
+         * Failed write().
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        assert_true(dlp_fs_write_bytes(infd, "foo", 3, NULL));
+        test_wrap_push(write, true, v);
+        rv = dlp_fs_copy(infd, outfd, &err);
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_false(rv);
+        g_variant_dict_unref(v);
+
+        /*
+         * Failed EOF check.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "rv", "i", 1);
+        test_wrap_push(read, true, v);
+        assert_true(dlp_fs_write_bytes(infd, "foo", 3, NULL));
+        rv = dlp_fs_copy(infd, outfd, &err);
+        TEST_ASSERT_ERR(err, DLP_FS_ERROR_EOF, "*");
+        assert_false(rv);
+        g_variant_dict_unref(v);
+
+        /*
+         * Failed final seek.
+         */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EBADF);
+        test_wrap_push(lseek64, true, v);
+        test_wrap_push(lseek64, false, NULL);
+        test_wrap_push(lseek64, false, NULL);
+        assert_true(dlp_fs_write_bytes(infd, "foo", 3, NULL));
+        rv = dlp_fs_copy(infd, outfd, &err);
+        TEST_ASSERT_ERR(err, EBADF, "*");
+        assert_false(rv);
+        g_variant_dict_unref(v);
+    }
+
+    assert_true(dlp_fs_close(&infd, NULL));
+    assert_true(dlp_fs_close(&outfd, NULL));
+}
+
 static void test_size(void **state)
 {
     int fd;
@@ -1803,6 +1943,7 @@ int main(void)
         cmocka_unit_test(test_fstat),
         cmocka_unit_test(test_seek),
         cmocka_unit_test(test_truncate),
+        cmocka_unit_test(test_copy),
         cmocka_unit_test(test_size),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),

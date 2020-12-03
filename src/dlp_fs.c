@@ -411,6 +411,63 @@ bool dlp_fs_truncate(int fd, off_t len, GError **error)
 }
 
 /**
+ * Copy the data from one file descriptor to another.
+ *
+ * This function is meant as a convenience when downloading data to unlinked
+ * temporary files created with dlp_fs_mkstemp().  Obviously not as efficient
+ * as simply downloading the data to its final destination, but the intent is
+ * to avoid writing potentially malicious data to regular files that might be
+ * automagically processed by common desktop applications before the data has
+ * been successfully verified.
+ *
+ * @param infd  Input file descriptor.
+ * @param outfd Output file descriptor.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_copy(int infd, int outfd, GError **error)
+{
+    size_t size;
+    size_t len;
+    char buf[DLP_BUFSIZ] = { 0 };
+
+    g_return_val_if_fail(infd >= 0 && outfd >= 0 && infd != outfd, false);
+
+    if (!dlp_fs_seek(infd, 0, SEEK_SET, error) ||
+        !dlp_fs_seek(outfd, 0, SEEK_SET, error) ||
+        !dlp_fs_truncate(outfd, 0, error) || !dlp_fs_size(infd, &size, error)) {
+        return false;
+    }
+
+    while (size != 0) {
+        len = MIN(sizeof(buf), size);
+
+        if (!dlp_fs_read_bytes(infd, buf, len, error)) {
+            return false;
+        }
+
+        if (!dlp_fs_write_bytes(outfd, buf, len, error)) {
+            return false;
+        }
+
+        size -= len;
+    }
+
+    if (!dlp_fs_read(infd, buf, 1, &len, NULL) || len != 0) {
+        g_set_error(error, DLP_ERROR, DLP_FS_ERROR_EOF, "%s",
+                    _("expected EOF"));
+        return false;
+    }
+
+    if (!dlp_fs_seek(infd, 0, SEEK_SET, error) ||
+        !dlp_fs_seek(outfd, 0, SEEK_SET, error)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Retrieve the size of a file.
  *
  * @param fd    File descriptor to retrieve the size of.

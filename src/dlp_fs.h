@@ -37,6 +37,7 @@
 
 enum dlp_fs_error {
     DLP_FS_ERROR_FAILED = 1,
+    DLP_FS_ERROR_EOF,
     DLP_FS_ERROR_TYPE,
 };
 
@@ -67,6 +68,7 @@ bool dlp_fs_write_bytes_impl(int fd, enum dlp_fs_ptr type, const void *buf,
 bool dlp_fs_seek(int fd, off_t offset, int whence,
                  GError **error) DLP_NODISCARD;
 bool dlp_fs_truncate(int fd, off_t len, GError **error) DLP_NODISCARD;
+bool dlp_fs_copy(int infd, int outfd, GError **error) DLP_NODISCARD;
 bool dlp_fs_size(int fd, size_t *size, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_rmdir(const char *path, GError **error) DLP_NODISCARD;
