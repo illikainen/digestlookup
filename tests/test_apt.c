@@ -134,6 +134,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
                    "SHA256:\n"
@@ -164,6 +165,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 321 file\n"
                    "SHA256: "
@@ -177,6 +179,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
 
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum: 68b329da9893e34099c7d8ad5cb9c940 321 file\n"
                    " 68b329da9893e34099c7d8ad5cb9c941 123 file1\n"
                    "SHA256:\n"
@@ -193,6 +196,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c 123 file1\n"
                    "SHA256:\n"
@@ -206,6 +210,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
 
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
                    "SHA256:\n"
@@ -221,6 +226,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
                    "SHA256:\n"
@@ -237,6 +243,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
                    "SHA256:\n"
@@ -253,6 +260,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
                    "SHA256:\n"
@@ -269,6 +277,7 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
                    "SHA256:\n");
@@ -279,6 +288,254 @@ static void test_apt_release_read_files(gpointer data, gconstpointer user_data)
     g_clear_error(&err);
 
     g_assert_true(dlp_fs_close(&fd, NULL));
+}
+
+static void test_apt_release_read_date(gpointer data, gconstpointer user_data)
+{
+    int fd;
+    bool rv;
+    struct dlp_apt_release *r;
+    GError *err = NULL;
+
+    (void)data;
+    (void)user_data;
+
+    g_assert_true(dlp_fs_mkstemp(&fd, NULL));
+
+    /*
+     * Success with +0000 %z timezone and 0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 0);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with +0000 %z timezone and non-0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 2020 00:00:00 +0000\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 1577836800);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with Z %z timezone and 0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 Z\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 0);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with Z %z timezone and non-0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 2020 00:00:00 Z\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 1577836800);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with UTC %Z timezone and 0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 UTC\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 0);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with UTC %Z timezone and non-0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 2020 00:00:00 UTC\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 1577836800);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with GMT %Z timezone and 0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 GMT\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 0);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Success with GMT %Z timezone and non-0 time.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Thu, 01 Jan 2020 00:00:00 GMT\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_nonnull(r);
+    g_assert_cmpint(r->date, ==, 1577836800);
+    dlp_apt_release_free(&r);
+
+    /*
+     * Invalid string.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: _Thu, 01 Jan 1970 00:00:00 +0000\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_assert_null(r);
+    g_clear_error(&err);
+
+    /*
+     * Invalid date.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "Date: Foo, 01 Jan 1970 00:00:00 +0000\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_assert_null(r);
+    g_clear_error(&err);
+
+    /*
+     * Missing newline.
+     */
+    prepare_fd(fd, "Suite: foo\n"
+                   "Codename: bar\n"
+                   "MD5Sum:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                   "SHA256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 987 file2\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000");
+    rv = dlp_apt_release_read(fd, &r, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_assert_null(r);
+    g_clear_error(&err);
+
+    if (test_wrap_p()) {
+        /*
+         * newlocale() failure with %z
+         */
+        prepare_fd(fd, "Suite: foo\n"
+                       "Codename: bar\n"
+                       "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
+                       "MD5Sum:\n"
+                       " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                       "SHA256:\n"
+                       " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f98"
+                       "05da"
+                       "ca546b 987 file2\n");
+        test_wrap_push(newlocale, true, NULL);
+        rv = dlp_apt_release_read(fd, &r, &err);
+        g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+        g_assert_false(rv);
+        g_assert_null(r);
+        g_clear_error(&err);
+
+        /*
+         * newlocale() failure with %Z
+         */
+        prepare_fd(fd, "Suite: foo\n"
+                       "Codename: bar\n"
+                       "Date: Thu, 01 Jan 1970 00:00:00 UTC\n"
+                       "MD5Sum:\n"
+                       " 68b329da9893e34099c7d8ad5cb9c940 0 file1\n"
+                       "SHA256:\n"
+                       " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f98"
+                       "05da"
+                       "ca546b 987 file2\n");
+        test_wrap_push(newlocale, true, NULL);
+        rv = dlp_apt_release_read(fd, &r, &err);
+        g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+        g_assert_false(rv);
+        g_assert_null(r);
+        g_clear_error(&err);
+    }
 }
 
 static void test_apt_release_read_misc(gpointer data, gconstpointer user_data)
@@ -308,6 +565,7 @@ static void test_apt_release_read_misc(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo\n"
                    "Codename: bar\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 321 file1\n"
                    "SHA256:\n"
@@ -338,6 +596,7 @@ static void test_apt_release_read_misc(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Suite: foo bar\n"
                    "Codename: baz\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 321 file1\n"
                    "SHA256:\n"
@@ -353,6 +612,7 @@ static void test_apt_release_read_misc(gpointer data, gconstpointer user_data)
      * Invalid EOF.
      */
     prepare_fd(fd, "Suite: foo\n"
+                   "Date: Thu, 01 Jan 1970 00:00:00 +0000\n"
                    "MD5Sum:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 321 file\n"
                    "SHA256:\n"
@@ -1163,6 +1423,8 @@ int main(int argc, char **argv)
                       test_apt_release_free, teardown);
     g_test_add_vtable("/apt/release/read/files", sizeof(struct state), NULL,
                       setup, test_apt_release_read_files, teardown);
+    g_test_add_vtable("/apt/release/read/date", sizeof(struct state), NULL,
+                      setup, test_apt_release_read_date, teardown);
     g_test_add_vtable("/apt/release/read/misc", sizeof(struct state), NULL,
                       setup, test_apt_release_read_misc, teardown);
     g_test_add_vtable("/apt/release/read/full", sizeof(struct state), NULL,

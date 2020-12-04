@@ -8,6 +8,7 @@
 #define DLP_APT_H
 
 #include <stdbool.h>
+#include <time.h>
 
 #include <glib.h>
 
@@ -29,6 +30,7 @@ struct dlp_apt_file {
 struct dlp_apt_release {
     char *codename;
     char *suite;
+    time_t date;
     GList *md5sum;
     GList *sha256;
 };

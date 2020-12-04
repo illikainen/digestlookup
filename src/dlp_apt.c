@@ -15,6 +15,7 @@
 #include <glib/gi18n.h>
 
 #include "dlp_backend.h"
+#include "dlp_date.h"
 #include "dlp_error.h"
 #include "dlp_mem.h"
 
@@ -45,6 +46,7 @@ static bool dlp_apt_symbols_read(GScanner *scan, GError **error) DLP_NODISCARD;
 static bool dlp_apt_parse_package(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_files(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_date(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
 static void dlp_apt_ctor(void) DLP_CONSTRUCTOR;
@@ -89,7 +91,9 @@ bool dlp_apt_release_read(int fd, struct dlp_apt_release **release,
           .offset = G_STRUCT_OFFSET(struct dlp_apt_release, codename),
           .required = true },
         { .name = "Components",               .fn = dlp_apt_parse_ignore },
-        { .name = "Date",                     .fn = dlp_apt_parse_ignore },
+        { .name = "Date",                     .fn = dlp_apt_parse_date,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_release, date),
+          .required = true },
         { .name = "Description",              .fn = dlp_apt_parse_ignore },
         { .name = "Label",                    .fn = dlp_apt_parse_ignore },
         { .name = "MD5Sum",                   .fn = dlp_apt_parse_files,
@@ -612,6 +616,59 @@ static bool dlp_apt_parse_word(GScanner *scan, void *dst)
     }
 
     *word = g_strdup(scan->value.v_string);
+
+    tok = g_scanner_get_next_token(scan);
+    if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
+        dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Parse a date.
+ *
+ * @param scan  Scanner to use.
+ * @param dst   Destination for the field value.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_parse_date(GScanner *scan, void *dst)
+{
+    GTokenType tok;
+    GError *err = NULL;
+    time_t *t = dst;
+
+    g_return_val_if_fail(scan != NULL && dst != NULL, false);
+
+    scan->config->cset_identifier_first = G_CSET_A_2_Z G_CSET_a_2_z;
+    scan->config->cset_identifier_nth = G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS
+        ",:+ ";
+    tok = g_scanner_get_next_token(scan);
+    *scan->config = dlp_apt_config;
+
+    if (tok != G_TOKEN_STRING) {
+        dlp_apt_unexp_token(scan, G_TOKEN_STRING);
+        return false;
+    }
+
+    /*
+     * The timezone may be specified as +0000, UTC, GMT or Z.
+     */
+    if (!dlp_date_parse(scan->value.v_string, "%a, %d %b %Y %H:%M:%S %z", t,
+                        &err)) {
+        if (g_error_matches(err, DLP_ERROR, DLP_DATE_ERROR_FORMAT)) {
+            g_clear_error(&err);
+            if (!dlp_date_parse(scan->value.v_string,
+                                "%a, %d %b %Y %H:%M:%S %Z", t, NULL)) {
+                dlp_apt_unexp_token(scan, G_TOKEN_STRING);
+                return false;
+            }
+        } else {
+            dlp_apt_unexp_token(scan, G_TOKEN_STRING);
+            return false;
+        }
+    }
 
     tok = g_scanner_get_next_token(scan);
     if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
