@@ -405,6 +405,51 @@ time_t __wrap_time(time_t *tloc)
 }
 
 /* cppcheck-suppress unusedFunction */
+locale_t __wrap_newlocale(int categ, const char *locale, locale_t base)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (elt.value == NULL) {
+            errno = EINVAL;
+            return (locale_t)0;
+        }
+        return *(locale_t *)elt.value;
+    }
+    return __real_newlocale(categ, locale, base);
+}
+
+/* cppcheck-suppress unusedFunction */
+locale_t __wrap_uselocale(locale_t newloc)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (elt.value == NULL) {
+            errno = EINVAL;
+            return (locale_t)0;
+        }
+        return *(locale_t *)elt.value;
+    }
+    return __real_uselocale(newloc);
+}
+
+/* cppcheck-suppress unusedFunction */
+time_t __wrap_timegm(struct tm *tm)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (elt.value == NULL) {
+            errno = EOVERFLOW;
+            return (time_t)-1;
+        }
+        return *(time_t *)elt.value;
+    }
+    return __real_timegm(tm);
+}
+
+/* cppcheck-suppress unusedFunction */
 int __wrap_closedir(DIR *dir)
 {
     struct test_wrap elt = { 0 };

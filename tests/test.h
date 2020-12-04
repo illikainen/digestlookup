@@ -132,6 +132,15 @@ struct dirent *__real_readdir64(DIR *dir);
 time_t __wrap_time(time_t *tloc);
 time_t __real_time(time_t *tloc);
 
+locale_t __wrap_newlocale(int categ, const char *locale, locale_t base);
+locale_t __real_newlocale(int categ, const char *locale, locale_t base);
+
+locale_t __wrap_uselocale(locale_t newloc);
+locale_t __real_uselocale(locale_t newloc);
+
+time_t __wrap_timegm(struct tm *tm);
+time_t __real_timegm(struct tm *tm);
+
 CURLcode __wrap_curl_global_init(long flags);
 CURLcode __real_curl_global_init(long flags);
 
