@@ -188,6 +188,33 @@ static void test_mem_ptr_array_destroy(void)
     dlp_mem_ptr_array_destroy(arr);
 }
 
+static void test_mem_regex_unref(void)
+{
+    GRegex *rx = NULL;
+
+    dlp_mem_regex_unref(NULL);
+    dlp_mem_regex_unref(&rx);
+
+    rx = g_regex_new("[a-zA-Z0-9]", G_REGEX_DOLLAR_ENDONLY,
+                     G_REGEX_MATCH_NOTEMPTY, NULL);
+    g_assert_nonnull(rx);
+    dlp_mem_regex_unref(&rx);
+    g_assert_null(rx);
+}
+
+static void test_mem_regex_destroy(void)
+{
+    GRegex *rx = NULL;
+
+    dlp_mem_regex_destroy(NULL);
+    dlp_mem_regex_destroy(rx);
+
+    rx = g_regex_new("[a-zA-Z0-9]", G_REGEX_DOLLAR_ENDONLY,
+                     G_REGEX_MATCH_NOTEMPTY, NULL);
+    g_assert_nonnull(rx);
+    dlp_mem_regex_destroy(rx);
+}
+
 int main(int argc, char **argv)
 {
     g_test_init(&argc, &argv, NULL);
@@ -210,6 +237,8 @@ int main(int argc, char **argv)
     g_test_add_func("/mem/clear", test_mem_clear);
     g_test_add_func("/mem/ptr-array-unref", test_mem_ptr_array_unref);
     g_test_add_func("/mem/ptr-array-destroy", test_mem_ptr_array_destroy);
+    g_test_add_func("/mem/regex-unref", test_mem_regex_unref);
+    g_test_add_func("/mem/regex-destroy", test_mem_regex_destroy);
 
     return g_test_run();
 }

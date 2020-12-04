@@ -20,5 +20,7 @@ void *dlp_mem_alloc_n(rsize_t size, rsize_t nmemb) DLP_NODISCARD DLP_MALLOC
     DLP_ALLOC_SIZE_2(1, 2);
 void dlp_mem_ptr_array_unref(GPtrArray **array);
 void dlp_mem_ptr_array_destroy(gpointer ptr);
+void dlp_mem_regex_unref(GRegex **rx);
+void dlp_mem_regex_destroy(gpointer ptr);
 
 #endif /* DLP_MEM_H */

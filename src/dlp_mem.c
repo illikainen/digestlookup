@@ -84,3 +84,28 @@ void dlp_mem_ptr_array_destroy(gpointer ptr)
 
     dlp_mem_ptr_array_unref(&array);
 }
+
+/**
+ * See dlp_mem_ptr_array_unref() for a rationale.
+ *
+ * @param rx Pointer to a GRegex pointer to unref.
+ */
+void dlp_mem_regex_unref(GRegex **rx)
+{
+    if (rx != NULL && *rx != NULL) {
+        g_regex_unref(*rx);
+        *rx = NULL;
+    }
+}
+
+/**
+ * See dlp_mem_ptr_array_destroy() for a rationale.
+ *
+ * @param ptr GRegex to unref.
+ */
+void dlp_mem_regex_destroy(gpointer ptr)
+{
+    GRegex *rx = ptr;
+
+    dlp_mem_regex_unref(&rx);
+}
