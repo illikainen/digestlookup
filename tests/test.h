@@ -129,6 +129,9 @@ int __real_closedir(DIR *dir);
 struct dirent *__wrap_readdir64(DIR *dir);
 struct dirent *__real_readdir64(DIR *dir);
 
+time_t __wrap_time(time_t *tloc);
+time_t __real_time(time_t *tloc);
+
 CURLcode __wrap_curl_global_init(long flags);
 CURLcode __real_curl_global_init(long flags);
 

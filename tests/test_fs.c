@@ -1328,7 +1328,6 @@ static void test_stat(void **state)
 {
     char *path;
     bool rv;
-    errno_t e;
     struct stat s;
     GError *err = NULL;
 
@@ -1353,14 +1352,19 @@ static void test_stat(void **state)
     assert_int_equal(s.st_size, 3);
 
     if (test_wrap_p()) {
+        GVariantDict *v;
+
         /*
          * ENOTDIR.
          */
-        e = ENOTDIR;
-        test_wrap_push(__xstat64, true, &e);
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", ENOTDIR);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(__xstat64, true, v);
         rv = dlp_fs_stat(path, &s, &err);
         TEST_ASSERT_ERR(err, ENOTDIR, "*");
         assert_false(rv);
+        g_variant_dict_unref(v);
     }
 
     dlp_mem_free(&path);
@@ -1712,12 +1716,118 @@ static void test_size(void **state)
     }
 }
 
+static void test_stale_p(void **state)
+{
+    bool stale;
+    bool rv;
+    char *path;
+    GError *err = NULL;
+
+    (void)state;
+
+    /*
+     * Nonexistent path.
+     */
+    assert_true(dlp_fs_cache_path(&path, NULL, "missing", NULL));
+    rv = dlp_fs_stale_p(path, 12345, &stale, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_true(stale);
+    dlp_mem_free(&path);
+
+    /*
+     * Fresh.
+     */
+    assert_true(dlp_fs_cache_path(&path, NULL, "fresh", NULL));
+    assert_true(g_file_set_contents(path, "foo", -1, NULL));
+    rv = dlp_fs_stale_p(path, 12345, &stale, &err);
+    assert_null(err);
+    assert_true(rv);
+    assert_false(stale);
+    dlp_mem_free(&path);
+
+    /*
+     * Not a regular file.
+     */
+    assert_true(dlp_fs_cache_dir(&path, NULL));
+    rv = dlp_fs_stale_p(path, 0, &stale, &err);
+    TEST_ASSERT_ERR(err, DLP_FS_ERROR_TYPE, "*");
+    assert_false(rv);
+    dlp_mem_free(&path);
+
+    if (test_wrap_p()) {
+        GVariantDict *v;
+        time_t now;
+
+        /*
+         * Stale because of mtime.
+         */
+        assert_true(dlp_fs_cache_path(&path, NULL, "stale", NULL));
+        assert_true(g_file_set_contents(path, "foo", -1, NULL));
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "st_mtime", "x", 1);
+        test_wrap_push(__xstat64, true, v);
+        rv = dlp_fs_stale_p(path, 123, &stale, &err);
+        assert_null(err);
+        assert_true(rv);
+        assert_true(stale);
+        dlp_mem_free(&path);
+        g_variant_dict_unref(v);
+
+        /*
+         * Fresh because of 0 max_diff.
+         */
+        assert_true(dlp_fs_cache_path(&path, NULL, "stale", NULL));
+        assert_true(g_file_set_contents(path, "foo", -1, NULL));
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "st_mtime", "x", 1);
+        test_wrap_push(__xstat64, true, v);
+        rv = dlp_fs_stale_p(path, 0, &stale, &err);
+        assert_null(err);
+        assert_true(rv);
+        assert_false(stale);
+        dlp_mem_free(&path);
+        g_variant_dict_unref(v);
+
+        /*
+         * Underflow.
+         */
+        if (!dlp_overflow_sub(INT64_MIN, 0, &now)) {
+            assert_true(dlp_fs_cache_path(&path, NULL, "underflow", NULL));
+            assert_true(g_file_set_contents(path, "foo", -1, NULL));
+            v = g_variant_dict_new(NULL);
+            g_variant_dict_insert(v, "st_mtime", "x", now);
+            test_wrap_push(__xstat64, true, v);
+            rv = dlp_fs_stale_p(path, 123, &stale, &err);
+            TEST_ASSERT_ERR(err, ERANGE, "*");
+            assert_false(rv);
+            dlp_mem_free(&path);
+            g_variant_dict_unref(v);
+        }
+
+        /*
+         * time() failure.
+         */
+        assert_true(dlp_fs_cache_path(&path, NULL, "time", NULL));
+        assert_true(g_file_set_contents(path, "foo", -1, NULL));
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EOVERFLOW);
+        g_variant_dict_insert(v, "rv", "x", (gint64)-1);
+        test_wrap_push(time, true, v);
+        rv = dlp_fs_stale_p(path, 123, &stale, &err);
+        assert_non_null(err);
+        assert_false(rv);
+        g_clear_error(&err);
+        dlp_mem_free(&path);
+        g_variant_dict_unref(v);
+    }
+}
+
 static void test_mkdir(void **state)
 {
     char *p;
     char *sp;
     struct stat st;
-    errno_t e;
     uid_t uid;
     gid_t gid;
     GError *err = NULL;
@@ -1757,11 +1867,16 @@ static void test_mkdir(void **state)
     dlp_mem_free(&sp);
 
     if (test_wrap_p()) {
+        GVariantDict *v;
+
         /* stat() failure */
-        e = EACCES;
-        test_wrap_push(__xstat64, true, &e);
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EACCES);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        test_wrap_push(__xstat64, true, v);
         assert_false(dlp_fs_mkdir("stat", &err));
-        TEST_ASSERT_ERR(err, e, "*");
+        TEST_ASSERT_ERR(err, EACCES, "*");
+        g_variant_dict_unref(v);
 
         /* getuid() failure */
         uid = 12345;
@@ -1945,6 +2060,7 @@ int main(void)
         cmocka_unit_test(test_truncate),
         cmocka_unit_test(test_copy),
         cmocka_unit_test(test_size),
+        cmocka_unit_test(test_stale_p),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),
         cmocka_unit_test(test_mkdtemp),

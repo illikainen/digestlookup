@@ -258,11 +258,22 @@ int __wrap_fsync(int fd)
 /* cppcheck-suppress unusedFunction */
 int __wrap___xstat64(int ver, const char *path, struct stat *s)
 {
+    gint64 tmp;
+    gint32 rv;
     struct test_wrap elt = { 0 };
 
     if (test_wrap_pop(&elt) && elt.wrap) {
-        errno = *(errno_t *)elt.value;
-        return -1;
+        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno) &&
+            g_variant_dict_lookup(elt.value, "rv", "i", &rv)) {
+            return rv;
+        }
+
+        rv = __real___xstat64(ver, path, s);
+        if (g_variant_dict_lookup(elt.value, "st_mtime", "x", &tmp)) {
+            s->st_mtime = tmp;
+        }
+
+        return rv;
     }
     return __real___xstat64(ver, path, s);
 }
@@ -373,6 +384,24 @@ struct dirent *__wrap_readdir64(DIR *dir)
         return NULL;
     }
     return __real_readdir64(dir);
+}
+
+/* cppcheck-suppress unusedFunction */
+time_t __wrap_time(time_t *tloc)
+{
+    gint64 tmp;
+    time_t rv;
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        if (g_variant_dict_lookup(elt.value, "errno", "i", &errno) &&
+            g_variant_dict_lookup(elt.value, "rv", "x", &tmp) &&
+            !dlp_overflow_add(tmp, 0, &rv)) {
+            return rv;
+        }
+        g_error("unhandled spec");
+    }
+    return __real_time(tloc);
 }
 
 /* cppcheck-suppress unusedFunction */

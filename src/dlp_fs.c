@@ -734,6 +734,53 @@ bool dlp_fs_check_stat(const struct stat *s, mode_t type, GError **error)
 }
 
 /**
+ * Check whether a regular file is stale.
+ *
+ * This function is intended for downloaded files.  As such, nonexistent files
+ * are always considered "stale" in the sense that they should be downloaded.
+ *
+ * @param path      Path to check.
+ * @param max_diff  Maximum difference in modification time, or 0 if existing
+ *                  files should be considered up-to-date.
+ * @param stale     Whether the file is stale.
+ * @param error     Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_stale_p(const char *path, time_t max_diff, bool *stale,
+                    GError **error)
+{
+    time_t now;
+    time_t diff;
+    struct stat s;
+
+    g_return_val_if_fail(path != NULL && stale != NULL, false);
+    *stale = true;
+
+    if (!g_file_test(path, G_FILE_TEST_EXISTS)) {
+        return true;
+    }
+
+    if (!dlp_fs_stat(path, &s, error) ||
+        !dlp_fs_check_stat(&s, DLP_FS_REG, error)) {
+        return false;
+    }
+
+    errno = 0;
+    if ((now = time(NULL)) == (time_t)-1) {
+        g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+        return false;
+    }
+
+    if (dlp_overflow_sub(now, s.st_mtime, &diff)) {
+        g_set_error(error, DLP_ERROR, ERANGE, "%s", g_strerror(ERANGE));
+        return false;
+    }
+
+    *stale = max_diff != 0 && diff > max_diff;
+    return true;
+}
+
+/**
  * Retrieve a per-user cache directory.
  *
  * The directory is created if it doesn't exist.

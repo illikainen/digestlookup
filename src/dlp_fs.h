@@ -9,6 +9,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <time.h>
 
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -81,6 +82,8 @@ bool dlp_fs_check_path(const char *path, mode_t type, bool must_exist,
                        GError **error) DLP_NODISCARD;
 bool dlp_fs_check_stat(const struct stat *s, mode_t type,
                        GError **error) DLP_NODISCARD;
+bool dlp_fs_stale_p(const char *path, time_t max_diff, bool *stale,
+                    GError **error) DLP_NODISCARD;
 bool dlp_fs_cache_dir(char **path, GError **error) DLP_NODISCARD;
 bool dlp_fs_cache_path(char **path, GError **error,
                        ...) DLP_NODISCARD G_GNUC_NULL_TERMINATED;
