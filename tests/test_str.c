@@ -7,7 +7,7 @@
 #include "dlp_str.h"
 #include "test.h"
 
-static void test_str_sanitize(void)
+static void test_str_sanitize_printable(void)
 {
     char *str;
 
@@ -32,12 +32,43 @@ static void test_str_sanitize(void)
     g_free(str);
 }
 
+static void test_str_sanitize_filename(void)
+{
+    char *str;
+
+    str = g_strdup("foo");
+    dlp_str_sanitize_filename(str);
+    g_assert_cmpstr(str, ==, "foo");
+    g_free(str);
+
+    str = g_strdup("foo.bar");
+    dlp_str_sanitize_filename(str);
+    g_assert_cmpstr(str, ==, "foo_bar");
+    g_free(str);
+
+    str = g_strdup("foo/bar");
+    dlp_str_sanitize_filename(str);
+    g_assert_cmpstr(str, ==, "foo_bar");
+    g_free(str);
+
+    str = g_strdup("../../foo/../bar");
+    dlp_str_sanitize_filename(str);
+    g_assert_cmpstr(str, ==, "______foo____bar");
+    g_free(str);
+
+    str = g_strdup("foo!bar.baz#$");
+    dlp_str_sanitize_filename(str);
+    g_assert_cmpstr(str, ==, "foo_bar_baz__");
+    g_free(str);
+}
+
 int main(int argc, char **argv)
 {
     g_assert_true(setenv("G_TEST_SRCDIR", PROJECT_DIR, 1) == 0);
     g_assert_true(setenv("G_TEST_BUILDDIR", BUILD_DIR, 1) == 0);
 
-    g_test_add_func("/str/sanitize", test_str_sanitize);
+    g_test_add_func("/str/sanitize/printable", test_str_sanitize_printable);
+    g_test_add_func("/str/sanitize/filename", test_str_sanitize_filename);
 
     g_test_init(&argc, &argv, NULL);
 

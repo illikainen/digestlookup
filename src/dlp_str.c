@@ -25,3 +25,15 @@ void dlp_str_sanitize(char *str)
 
     g_strcanon(str, DLP_STR_ASCII_PRINTABLE, '_');
 }
+
+/**
+ * Sanitize a filename.
+ *
+ * @param str String to sanitize.
+ */
+void dlp_str_sanitize_filename(char *str)
+{
+    g_return_if_fail(str != NULL);
+
+    g_strcanon(str, DLP_STR_ASCII_A_Z DLP_STR_ASCII_DIGITS, '_');
+}
