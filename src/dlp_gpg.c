@@ -202,6 +202,7 @@ bool dlp_gpg_import_key(struct dlp_gpg *gpg, const char *path,
     bool success = false;
 
     g_return_val_if_fail(gpg != NULL && path != NULL, false);
+    g_debug("import %s", path);
 
     if (dlp_resource_p(path)) {
         if (!dlp_resource_data(path, &buf, &size, error)) {
@@ -387,6 +388,7 @@ bool dlp_gpg_verify_attached(struct dlp_gpg *gpg, int msgfd, int outfd,
     bool success = false;
 
     g_return_val_if_fail(gpg != NULL && msgfd >= 0 && outfd >= 0, false);
+    g_debug("verify msgfd=%d, outfd=%d", msgfd, outfd);
 
     if (dlp_fs_seek(msgfd, 0, SEEK_SET, error) &&
         dlp_fs_seek(outfd, 0, SEEK_SET, error) &&
@@ -430,6 +432,7 @@ bool dlp_gpg_verify_detached(struct dlp_gpg *gpg, int msgfd, int sigfd,
     bool success = false;
 
     g_return_val_if_fail(gpg != NULL && msgfd >= 0 && sigfd >= 0, false);
+    g_debug("verify msgfd=%d, sigfd=%d", msgfd, sigfd);
 
     if (dlp_fs_seek(msgfd, 0, SEEK_SET, error) &&
         dlp_fs_seek(sigfd, 0, SEEK_SET, error) &&
@@ -682,6 +685,8 @@ static bool dlp_gpg_check_signatures(struct dlp_gpg *gpg,
         if (!dlp_gpg_ensure(err, error)) {
             return false;
         }
+
+        g_debug("good signature by %s", s->fpr);
     }
 
     return true;
