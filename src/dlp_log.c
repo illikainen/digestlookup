@@ -124,7 +124,8 @@ static bool dlp_log_p(GLogLevelFlags level, const struct dlp_log_fields *lf)
     g_return_val_if_fail(lf != NULL, false);
 
     /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
-    if (dlp_log_verbose || (level & G_LOG_LEVEL_DEBUG) == 0) {
+    if ((level & G_LOG_LEVEL_DEBUG) == 0 ||
+        (dlp_log_verbose && g_strcmp0(lf->domain, PROJECT_NAME) == 0)) {
         return true;
     }
 
