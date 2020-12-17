@@ -8,6 +8,12 @@
 
 #include <glib.h>
 
+#define DLP_STR_ASCII_DIGITS "0123456789"
+#define DLP_STR_ASCII_A_Z "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+#define DLP_STR_ASCII_OTHER " !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
+#define DLP_STR_ASCII_PRINTABLE                                                \
+    DLP_STR_ASCII_DIGITS DLP_STR_ASCII_A_Z DLP_STR_ASCII_OTHER
+
 /**
  * Simple string sanitizer.
  *
@@ -17,9 +23,5 @@ void dlp_str_sanitize(char *str)
 {
     g_return_if_fail(str != NULL);
 
-    for (; *str != '\0'; str++) {
-        if (*str < 0x20 || *str > 0x7d) {
-            *str = '_';
-        }
-    }
+    g_strcanon(str, DLP_STR_ASCII_PRINTABLE, '_');
 }
