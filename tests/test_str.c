@@ -25,6 +25,11 @@ static void test_str_sanitize(void)
     dlp_str_sanitize(str);
     g_assert_cmpstr(str, ==, "_[31m  foo  _[32m  bar  _[0m");
     g_free(str);
+
+    str = g_strdup("\033[31mfoo\nbar\033[0m");
+    dlp_str_sanitize(str);
+    g_assert_cmpstr(str, ==, "_[31mfoo\nbar_[0m");
+    g_free(str);
 }
 
 int main(int argc, char **argv)

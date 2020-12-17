@@ -10,7 +10,7 @@
 
 #define DLP_STR_ASCII_DIGITS "0123456789"
 #define DLP_STR_ASCII_A_Z "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-#define DLP_STR_ASCII_OTHER " !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~"
+#define DLP_STR_ASCII_OTHER " !\"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~\n"
 #define DLP_STR_ASCII_PRINTABLE                                                \
     DLP_STR_ASCII_DIGITS DLP_STR_ASCII_A_Z DLP_STR_ASCII_OTHER
 
