@@ -47,6 +47,9 @@ static bool dlp_cfg_get_uint64(GKeyFile *kf, const char *group, const char *key,
 static bool dlp_cfg_get_time(GKeyFile *kf, const char *group, const char *key,
                              const void *fallback, void *dst,
                              GError **error) DLP_NODISCARD;
+static bool dlp_cfg_get_file(GKeyFile *kf, const char *group, const char *key,
+                             const void *fallback, void *dst,
+                             GError **error) DLP_NODISCARD;
 static bool dlp_cfg_get_files(GKeyFile *kf, const char *group, const char *key,
                               const void *fallback, void *dst,
                               GError **error) DLP_NODISCARD;
@@ -73,6 +76,11 @@ static const struct dlp_cfg_setting dlp_cfg_repo_settings[] = {
       .free = g_free,
       .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, url),
       .required = true },
+    { .key = "ca-file",
+      .get = dlp_cfg_get_file,
+      .free = g_free,
+      .offset = G_STRUCT_OFFSET(struct dlp_cfg_repo, ca_file),
+      .required = false },
     { .key = "tls-key",
       .get = dlp_cfg_get_string,
       .free = g_free,
@@ -482,6 +490,43 @@ static bool dlp_cfg_get_time(GKeyFile *kf, const char *group, const char *key,
 
     if (dlp_overflow_add(n, 0, t)) {
         g_set_error(error, DLP_ERROR, EOVERFLOW, "%s", g_strerror(EOVERFLOW));
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Read a file from the configuration.
+ *
+ * The file must exist and entries prefixed with resource:// are interpreted as
+ * being a GResource file.
+ *
+ * @param kf        Config settings.
+ * @param group     Group to read from.
+ * @param key       Key to read.
+ * @param fallback  Optional value to use if the key doesn't exist.
+ * @param dst       Destination for the config value.
+ * @param error     Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_cfg_get_file(GKeyFile *kf, const char *group, const char *key,
+                             const void *fallback, void *dst, GError **error)
+{
+    char **file = dst;
+
+    g_return_val_if_fail(kf != NULL && group != NULL, false);
+    g_return_val_if_fail(key != NULL && dst != NULL, false);
+
+    if (!dlp_cfg_get_string(kf, group, key, fallback, file, error)) {
+        return false;
+    }
+
+    if (dlp_resource_p(*file)) {
+        if (!dlp_resource_exists_p(*file, error)) {
+            return false;
+        }
+    } else if (!dlp_fs_check_path(*file, DLP_FS_REG, true, error)) {
         return false;
     }
 

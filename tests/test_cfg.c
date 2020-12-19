@@ -206,6 +206,28 @@ static void test_cfg_read(gpointer data, gconstpointer user_data)
     g_assert_null(cfg);
     g_clear_error(&err);
 
+    /* Missing fs ca-file. */
+    g_assert_true(g_file_set_contents(path,
+                                      "[debian-stable]\n"
+                                      "ca-file = foo/bar/baz\n",
+                                      -1, NULL));
+    rv = dlp_cfg_read(path, &cfg, &err);
+    g_assert_error(err, DLP_ERROR, ENOENT);
+    g_assert_false(rv);
+    g_assert_null(cfg);
+    g_clear_error(&err);
+
+    /* Missing resource ca-file. */
+    g_assert_true(g_file_set_contents(path,
+                                      "[debian-stable]\n"
+                                      "ca-file = resource://foo/bar/baz\n",
+                                      -1, NULL));
+    rv = dlp_cfg_read(path, &cfg, &err);
+    g_assert_error(err, G_RESOURCE_ERROR, G_RESOURCE_ERROR_NOT_FOUND);
+    g_assert_false(rv);
+    g_assert_null(cfg);
+    g_clear_error(&err);
+
     /* Default uint64. */
     g_assert_true(g_file_set_contents(path,
                                       "[foo]\n"

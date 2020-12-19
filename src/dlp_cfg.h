@@ -25,6 +25,7 @@ struct dlp_cfg_repo {
     char *name;
     struct dlp_backend *backend;
     char *url;
+    char *ca_file;
     char *tls_key;
     char *user_agent;
     GPtrArray *verify_keys;
