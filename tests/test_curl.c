@@ -183,7 +183,8 @@ static void test_success_array(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
     assert_true(dlp_curl_init(&curl[0], NULL));
@@ -209,7 +210,8 @@ static void test_success_array_direct(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
     assert_true(dlp_curl_init(&curl[0], NULL));
@@ -236,7 +238,8 @@ static void test_success_ptr_array(void **state)
     struct state *s = *state;
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     array = g_ptr_array_new_full(0, dlp_curl_destroy);
     url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
@@ -264,7 +267,8 @@ static void test_success_one(void **state)
     CURL *curl;
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
     assert_true(dlp_curl_init(&curl, NULL));
@@ -290,7 +294,8 @@ static void test_success_one_direct(void **state)
     CURL *curl;
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/success",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://%s:%u/success", s->host, s->port);
     assert_true(dlp_curl_init(&curl, NULL));
@@ -316,7 +321,8 @@ static void test_bad_ca(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/bad-ca",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://%s:%u/bad-ca", s->host, s->port);
     assert_true(dlp_curl_init(&curl[0], NULL));
@@ -340,7 +346,8 @@ static void test_bad_fqdn(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/bad-fqdn",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://localhost:%u/bad-fqdn", s->port);
     assert_true(dlp_curl_init(&curl[0], NULL));
@@ -366,7 +373,8 @@ static void test_bad_pin(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/bad-pin",
-                                    "agent", "foobar", 0, MHD_HTTP_OK, NULL));
+                                    "agent", "foobar", 0, 0, MHD_HTTP_OK,
+                                    NULL));
 
     url = g_strdup_printf("https://%s:%u/bad-pin", s->host, s->port);
     sha256 = "sha256//hQCB8c6ZQftPpThbwMC0MDL1Jye+3IZnzqfobXbCFXa=";
@@ -392,7 +400,7 @@ static void test_301(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/301", "agent",
-                                    "foobar", 0, MHD_HTTP_MOVED_PERMANENTLY,
+                                    "foobar", 0, 0, MHD_HTTP_MOVED_PERMANENTLY,
                                     NULL));
 
     url = g_strdup_printf("https://%s:%u/301", s->host, s->port);
@@ -418,7 +426,7 @@ static void test_404(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/404", "agent",
-                                    "foobar", 0, MHD_HTTP_NOT_FOUND, NULL));
+                                    "foobar", 0, 0, MHD_HTTP_NOT_FOUND, NULL));
 
     url = g_strdup_printf("https://%s:%u/404", s->host, s->port);
     assert_true(dlp_curl_init(&curl[0], NULL));
@@ -444,7 +452,7 @@ static void test_get_mtime(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/get-mtime",
-                                    "agent", "foobar", 12345, MHD_HTTP_OK,
+                                    "agent", "foobar", 0, 12345, MHD_HTTP_OK,
                                     NULL));
 
     url = g_strdup_printf("https://%s:%u/get-mtime", s->host, s->port);
@@ -474,7 +482,7 @@ static void test_head_mtime(void **state)
     CURL *curl[2] = { NULL };
 
     assert_true(dlp_mhd_session_add(s->mhd, "HEAD", "HTTP/1.1", "/head-mtime",
-                                    "agent", "foobar", 12345, MHD_HTTP_OK,
+                                    "agent", "foobar", 0, 12345, MHD_HTTP_OK,
                                     NULL));
 
     url = g_strdup_printf("https://%s:%u/head-mtime", s->host, s->port);
@@ -510,7 +518,7 @@ static void test_multi_success_array(void **state)
         gchar *content = g_strdup_printf("content-%zu", i);
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -551,7 +559,7 @@ static void test_multi_success_ptr_array(void **state)
         gchar *content = g_strdup_printf("content-%zu", i);
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl, NULL));
         assert_true(dlp_curl_set(curl, CURLOPT_URL, url));
@@ -591,7 +599,7 @@ static void test_multi_bad_ca(void **state)
         gchar *sha256 = s->sha256;
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -631,7 +639,7 @@ static void test_multi_bad_fqdn(void **state)
         gchar *sha256 = s->sha256;
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -671,7 +679,7 @@ static void test_multi_bad_pin(void **state)
         gchar *sha256 = s->sha256;
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -715,7 +723,7 @@ static void test_multi_301(void **state)
             status = MHD_HTTP_MOVED_PERMANENTLY;
         }
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, status, NULL));
+                                        content, 0, 0, status, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -756,7 +764,7 @@ static void test_multi_404(void **state)
             status = MHD_HTTP_NOT_FOUND;
         }
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, status, NULL));
+                                        content, 0, 0, status, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -793,7 +801,7 @@ static void test_multi_reuse(void **state)
         gchar *content = g_strdup_printf("content-0-%zu", i);
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));
@@ -824,7 +832,7 @@ static void test_multi_reuse(void **state)
         gchar *content = g_strdup_printf("content-1-%zu", i);
 
         assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", path, agent,
-                                        content, 0, MHD_HTTP_OK, NULL));
+                                        content, 0, 0, MHD_HTTP_OK, NULL));
 
         assert_true(dlp_curl_init(&curl[i], NULL));
         assert_true(dlp_curl_set(curl[i], CURLOPT_URL, url));

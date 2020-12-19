@@ -140,8 +140,9 @@ bool dlp_mhd_stop(struct dlp_mhd *mhd)
 
 bool dlp_mhd_session_add(struct dlp_mhd *mhd, const char *method,
                          const char *version, const char *path,
-                         const char *user_agent, const char *content,
-                         time_t mtime, unsigned int status, GError **error)
+                         const char *user_agent, const void *content,
+                         size_t content_len, time_t mtime, unsigned int status,
+                         GError **error)
 {
     struct dlp_mhd_session *s;
 
@@ -155,16 +156,24 @@ bool dlp_mhd_session_add(struct dlp_mhd *mhd, const char *method,
     s->req.version = g_strdup(version);
     s->req.path = g_strdup(path);
     s->req.user_agent = g_strdup(user_agent);
-    s->res.content = g_strdup(content);
     s->res.status = status;
+
+    if (content_len == 0) {
+        s->res.content = g_strdup(content);
+        content_len = strlen(s->res.content);
+    } else {
+        s->res.content = dlp_mem_alloc(content_len);
+        if (memcpy(s->res.content, content, content_len) != s->res.content) {
+            return false;
+        }
+    }
 
     if (!dlp_mhd_lmtime(mtime, &s->res.lmtime, error)) {
         dlp_mhd_session_free(s);
         return false;
     }
 
-    s->mhd_res = MHD_create_response_from_buffer(strlen(s->res.content),
-                                                 s->res.content,
+    s->mhd_res = MHD_create_response_from_buffer(content_len, s->res.content,
                                                  MHD_RESPMEM_PERSISTENT);
     if (s->mhd_res == NULL) {
         dlp_mhd_session_free(s);

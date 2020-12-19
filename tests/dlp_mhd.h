@@ -30,8 +30,8 @@ bool dlp_mhd_start(struct dlp_mhd *mhd, const char *addr, uint16_t port,
 bool dlp_mhd_stop(struct dlp_mhd *mhd) DLP_NODISCARD;
 bool dlp_mhd_session_add(struct dlp_mhd *mhd, const char *method,
                          const char *version, const char *path,
-                         const char *user_agent, const char *content,
-                         time_t mtime, unsigned int status,
+                         const char *user_agent, const void *content,
+                         size_t content_len, time_t mtime, unsigned int status,
                          GError **error) DLP_NODISCARD;
 bool dlp_mhd_session_remove_all(struct dlp_mhd *mhd) DLP_NODISCARD;
 
