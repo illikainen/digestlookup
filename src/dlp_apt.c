@@ -223,7 +223,7 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
         { .name = "Extra-Source-Only",        .fn = dlp_apt_parse_ignore },
         { .name = "Files",                    .fn = dlp_apt_parse_files,
           .offset = G_STRUCT_OFFSET(struct dlp_apt_source, files),
-          .required = true },
+          .required = false },
         { .name = "Format",                   .fn = dlp_apt_parse_ignore },
         { .name = "Go-Import-Path",           .fn = dlp_apt_parse_ignore },
         { .name = "Homepage",                 .fn = dlp_apt_parse_ignore },
