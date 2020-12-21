@@ -14,10 +14,17 @@
 
 #include <glib/gi18n.h>
 
+#include "dlp_apt.h"
 #include "dlp_backend.h"
+#include "dlp_curl.h"
 #include "dlp_date.h"
+#include "dlp_digest.h"
 #include "dlp_error.h"
+#include "dlp_fs.h"
+#include "dlp_gpg.h"
+#include "dlp_lzma.h"
 #include "dlp_mem.h"
+#include "dlp_str.h"
 
 #define dlp_apt_unexp_token(scan, exp_token)                                   \
     g_scanner_unexp_token(scan, exp_token, NULL, NULL, NULL, G_STRLOC, true)
@@ -49,6 +56,20 @@ static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_date(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
+static bool dlp_apt_lookup(const struct dlp_cfg_repo *cfg,
+                           const GPtrArray *regex, struct dlp_table *table,
+                           GError **error) DLP_NODISCARD;
+static bool dlp_apt_release_download(const char *path,
+                                     const struct dlp_cfg_repo *cfg,
+                                     GError **error) DLP_NODISCARD;
+static bool dlp_apt_sources_download(const char *path,
+                                     const struct dlp_cfg_repo *cfg,
+                                     const struct dlp_apt_file *file,
+                                     GError **error) DLP_NODISCARD;
+static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
+                                 const GList *sources, const GPtrArray *regex,
+                                 struct dlp_table *table,
+                                 GError **error) DLP_NODISCARD;
 static void dlp_apt_ctor(void) DLP_CONSTRUCTOR;
 static void dlp_apt_dtor(void) DLP_DESTRUCTOR;
 
@@ -737,6 +758,309 @@ static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error)
 }
 
 /**
+ * Lookup one or more regular expressions.
+ *
+ * @param cfg   Configuration.
+ * @param regex Regular expressions to lookup.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_lookup(const struct dlp_cfg_repo *cfg,
+                           const GPtrArray *regex, struct dlp_table *table,
+                           GError **error)
+{
+    bool stale;
+    bool rv = false;
+    int fd = -1;
+    int tmpfd = -1;
+    GList *sources = NULL;
+    GList *sha256 = NULL;
+    char *path = NULL;
+    char *tmp = NULL;
+    char *dir = NULL;
+    struct dlp_apt_release *release = NULL;
+    struct dlp_apt_file *file = NULL;
+
+    g_return_val_if_fail(cfg != NULL && regex != NULL && table != NULL, false);
+
+    if (!dlp_fs_data_path(&path, error, cfg->name, "Release", NULL) ||
+        !dlp_fs_stale_p(path, cfg->cache, &stale, error) ||
+        (stale && !dlp_fs_remove(path, error)) ||
+        !dlp_apt_release_download(path, cfg, error) ||
+        !dlp_fs_open(path, O_RDONLY, S_IRUSR, &fd, error) ||
+        !dlp_apt_release_read(fd, &release, error) ||
+        !dlp_fs_close(&fd, NULL)) {
+        goto out;
+    }
+    dlp_mem_free(&path);
+
+    if (!dlp_fs_data_path(&dir, error, cfg->name, "sources", NULL) ||
+        (stale && !dlp_fs_remove(dir, error)) || !dlp_fs_mkdir(dir, error)) {
+        goto out;
+    }
+
+    for (sha256 = release->sha256; sha256 != NULL; sha256 = sha256->next) {
+        file = sha256->data;
+        if (g_str_has_suffix(file->name, "/Sources.xz")) {
+            /*
+             * The unsanitized parts of the path originates from the config
+             * file and the user-specific data directory.
+             */
+            tmp = g_strdup(file->name);
+            dlp_str_sanitize_filename(tmp);
+            path = g_build_filename(dir, tmp, NULL);
+            dlp_mem_free(&tmp);
+
+            if (!dlp_apt_sources_download(path, cfg, file, error) ||
+                !dlp_fs_open(path, O_RDONLY, S_IRUSR, &fd, error) ||
+                !dlp_fs_mkstemp(&tmpfd, error) ||
+                !dlp_lzma_decompress(fd, tmpfd, error) ||
+                !dlp_apt_sources_read(tmpfd, &sources, error) ||
+                !dlp_apt_sources_find(cfg, sources, regex, table, error) ||
+                !dlp_fs_close(&fd, NULL) || !dlp_fs_close(&tmpfd, NULL)) {
+                break;
+            }
+
+            dlp_mem_free(&path);
+            dlp_apt_sources_free(&sources);
+        }
+    }
+
+    rv = sha256 == NULL;
+
+out:
+    rv = dlp_fs_close(&fd, rv ? error : NULL) && rv;
+    rv = dlp_fs_close(&tmpfd, rv ? error : NULL) && rv;
+
+    dlp_apt_release_free(&release);
+    dlp_apt_sources_free(&sources);
+
+    dlp_mem_free(&path);
+    dlp_mem_free(&dir);
+
+    return rv;
+}
+
+/**
+ * Download and verify a 'Release' file.
+ *
+ * The output of the signature verification is stored in the destination path.
+ * That is, the inline signature and any potential data outside of the PGP
+ * header and/or footer are not written to the destination path.  The rationale
+ * is that GPG and GPGME happily ignores any unsigned and potentially malicious
+ * data outside of the PGP header and/or footer during signature verification;
+ * see dlp_gpg_verify_attached().
+ *
+ * Unfortunately, a consequence of only storing the verified data is that it
+ * cannot be re-verified when reusing already-downloaded release files.
+ *
+ * @param path  Destination path.
+ * @param cfg   Configuration.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_release_download(const char *path,
+                                     const struct dlp_cfg_repo *cfg,
+                                     GError **error)
+{
+    int trusted_fd = -1;
+    int tmp_fd = -1;
+    int untrusted_fd = -1;
+    char *url = NULL;
+    CURL *curl = NULL;
+    struct dlp_gpg *gpg = NULL;
+    gpgme_validity_t trust = GPGME_VALIDITY_ULTIMATE;
+    bool rv = false;
+
+    g_return_val_if_fail(path != NULL && cfg != NULL, false);
+
+    if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
+        url = g_strconcat(cfg->url, "/InRelease", NULL);
+        g_info("InRelease: downloading %s", url);
+
+        if (!dlp_fs_mkstemp(&untrusted_fd, error) ||
+            !dlp_curl_init(&curl, error) ||
+            !dlp_curl_set(curl, CURLOPT_URL, url) ||
+            !dlp_curl_set(curl, CURLOPT_CAINFO, cfg->ca_file) ||
+            !dlp_curl_set(curl, CURLOPT_PINNEDPUBLICKEY, cfg->tls_key) ||
+            !dlp_curl_set(curl, CURLOPT_USERAGENT, cfg->user_agent) ||
+            !dlp_curl_set(curl, CURLOPT_WRITEDATA, &untrusted_fd)) {
+            goto out;
+        }
+
+        if (!dlp_curl_perform(curl, error)) {
+            goto out;
+        }
+
+        if (!dlp_fs_mkstemp(&tmp_fd, error) || !dlp_gpg_init(&gpg, error) ||
+            !dlp_gpg_import_keys(gpg, cfg->verify_keys, trust, error) ||
+            !dlp_gpg_verify_attached(gpg, untrusted_fd, tmp_fd, error)) {
+            goto out;
+        }
+        g_info("InRelease: verified signature");
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        if (!dlp_fs_open(path, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR,
+                         &trusted_fd, error) ||
+            !dlp_fs_copy(tmp_fd, trusted_fd, error)) {
+            goto out;
+        }
+    }
+
+    rv = true;
+
+out:
+    rv = dlp_gpg_free(&gpg, rv ? error : NULL) && rv;
+    rv = dlp_fs_close(&trusted_fd, rv ? error : NULL) && rv;
+    rv = dlp_fs_close(&untrusted_fd, rv ? error : NULL) && rv;
+    rv = dlp_fs_close(&tmp_fd, rv ? error : NULL) && rv;
+    if (!rv) {
+        DLP_DISCARD(dlp_fs_remove(path, NULL));
+    }
+
+    dlp_mem_free(&url);
+    dlp_curl_free(&curl);
+
+    return rv;
+}
+
+/**
+ * Download and verify a 'Sources' file.
+ *
+ * @param path  Destination path.
+ * @param cfg   Configuration.
+ * @param file  File structure that originates from a PGP-verified Release file.
+ *              This is used to build a URL and to verify the sha256 digest of
+ *              the downloaded data.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_sources_download(const char *path,
+                                     const struct dlp_cfg_repo *cfg,
+                                     const struct dlp_apt_file *file,
+                                     GError **error)
+{
+    int trusted_fd = -1;
+    int untrusted_fd = -1;
+    char *url = NULL;
+    CURL *curl = NULL;
+    bool rv = false;
+    GChecksumType algo = G_CHECKSUM_SHA256;
+    enum dlp_digest_encode enc = DLP_DIGEST_ENCODE_HEX;
+
+    g_return_val_if_fail(path != NULL && cfg != NULL && file != NULL, false);
+
+    if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
+        url = g_strconcat(cfg->url, "/", file->name, NULL);
+        g_info("%s: downloading %s (%.2fM)", file->name, url,
+               file->size / 1024.0 / 1024);
+
+        if (!dlp_fs_mkstemp(&untrusted_fd, error) ||
+            !dlp_curl_init(&curl, error) ||
+            !dlp_curl_set(curl, CURLOPT_URL, url) ||
+            !dlp_curl_set(curl, CURLOPT_CAINFO, cfg->ca_file) ||
+            !dlp_curl_set(curl, CURLOPT_PINNEDPUBLICKEY, cfg->tls_key) ||
+            !dlp_curl_set(curl, CURLOPT_USERAGENT, cfg->user_agent) ||
+            !dlp_curl_set(curl, CURLOPT_WRITEDATA, &untrusted_fd)) {
+            goto out;
+        }
+
+        if (!dlp_curl_perform(curl, error)) {
+            goto out;
+        }
+
+        if (!dlp_digest_cmp(untrusted_fd, algo, enc, file->digest, error)) {
+            goto out;
+        }
+        g_info("%s: verified sha256 (%s)", file->name, file->digest);
+
+        /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+        if (!dlp_fs_open(path, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR,
+                         &trusted_fd, error) ||
+            !dlp_fs_copy(untrusted_fd, trusted_fd, error)) {
+            goto out;
+        }
+    } else {
+        if (!dlp_fs_open(path, O_RDONLY, S_IRUSR, &untrusted_fd, error) ||
+            !dlp_digest_cmp(untrusted_fd, algo, enc, file->digest, error)) {
+            goto out;
+        }
+        g_info("%s: verified sha256 (%s)", file->name, file->digest);
+    }
+
+    rv = true;
+
+out:
+    rv = dlp_fs_close(&trusted_fd, rv ? error : NULL) && rv;
+    rv = dlp_fs_close(&untrusted_fd, rv ? error : NULL) && rv;
+    if (!rv) {
+        DLP_DISCARD(dlp_fs_remove(path, NULL));
+    }
+
+    dlp_mem_free(&url);
+    dlp_curl_free(&curl);
+
+    return rv;
+}
+
+/**
+ * Search a list of source structures for an array of regular expressions.
+ *
+ * @param cfg       Configuration.
+ * @param sources   Source structures to search.
+ * @param regex     Regular expressions to find.
+ * @param table     Destination table for any matches.
+ * @param error     Optional error information.
+ * @return True on success (including 0 matches) and false on failure.
+ */
+static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
+                                 const GList *sources, const GPtrArray *regex,
+                                 struct dlp_table *table, GError **error)
+{
+    guint i;
+    GList *elt;
+    struct dlp_apt_file *f;
+    struct dlp_apt_source *s;
+    GRegex *rx;
+    GRegexMatchFlags flags = (GRegexMatchFlags)0;
+    bool match = false;
+
+    g_return_val_if_fail(cfg != NULL && sources != NULL, false);
+    g_return_val_if_fail(regex != NULL && table != NULL, false);
+
+    for (; sources != NULL; sources = sources->next) {
+        s = sources->data;
+
+        for (i = 0; i < regex->len; i++) {
+            rx = regex->pdata[i];
+            if (!(match = g_regex_match(rx, s->package, flags, NULL))) {
+                for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
+                    f = elt->data;
+                    if ((match = g_regex_match(rx, f->name, flags, NULL))) {
+                        break;
+                    }
+                }
+            }
+
+            if (match) {
+                for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
+                    f = elt->data;
+                    if (!dlp_table_add_row(table, error, "repository",
+                                           cfg->name, "package", s->package,
+                                           "file", f->name, "algorithm",
+                                           "sha256", "digest", f->digest,
+                                           NULL)) {
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+
+    return true;
+}
+
+/**
  * Constructor for the APT backend.
  */
 /* cppcheck-suppress unusedFunction */
@@ -746,6 +1070,7 @@ static void dlp_apt_ctor(void)
 
     be = dlp_mem_alloc(sizeof(*be));
     be->name = "apt";
+    be->lookup = dlp_apt_lookup;
 
     dlp_backend_add(be);
 }
