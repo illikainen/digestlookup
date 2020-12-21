@@ -73,6 +73,7 @@ bool dlp_fs_copy(int infd, int outfd, GError **error) DLP_NODISCARD;
 bool dlp_fs_size(int fd, size_t *size, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdir(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_rmdir(const char *path, GError **error) DLP_NODISCARD;
+bool dlp_fs_remove(const char *path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkdtemp(char **path, GError **error) DLP_NODISCARD;
 bool dlp_fs_mkstemp(int *fd, GError **error) DLP_NODISCARD;
 bool dlp_fs_stat(const char *path, struct stat *s,

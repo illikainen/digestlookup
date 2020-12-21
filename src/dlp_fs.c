@@ -543,6 +543,38 @@ bool dlp_fs_rmdir(const char *path, GError **error)
 }
 
 /**
+ * Remove a path if it exists.
+ *
+ * @param path  Path to remove.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+bool dlp_fs_remove(const char *path, GError **error)
+{
+    struct stat s;
+
+    if (!g_file_test(path, G_FILE_TEST_EXISTS)) {
+        return true;
+    }
+
+    if (!dlp_fs_stat(path, &s, error)) {
+        return false;
+    }
+
+    if ((s.st_mode & DLP_FS_TYPE) == DLP_FS_DIR) {
+        return dlp_fs_rmdir(path, error);
+    }
+
+    errno = 0;
+    if (unlink(path) != 0) {
+        g_set_error(error, DLP_ERROR, errno, "%s", g_strerror(errno));
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Create a per-user temporary directory.
  *
  * @param path  Temporary directory that must be freed after use.

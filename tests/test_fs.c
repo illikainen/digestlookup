@@ -1960,6 +1960,52 @@ static void test_rmdir(void **state)
     assert_int_not_equal(stat("b", &s), 0);
 }
 
+static void test_remove(void **state)
+{
+    GError *err = NULL;
+
+    (void)state;
+
+    /* missing path */
+    assert_true(dlp_fs_remove("a", &err));
+
+    /* directory */
+    assert_true(dlp_fs_mkdir("a", NULL));
+    assert_true(g_file_test("a", G_FILE_TEST_IS_DIR));
+    assert_true(dlp_fs_remove("a", &err));
+    assert_false(g_file_test("a", G_FILE_TEST_EXISTS));
+
+    /* file */
+    assert_true(g_file_set_contents("a", "foo", -1, NULL));
+    assert_true(g_file_test("a", G_FILE_TEST_IS_REGULAR));
+    assert_true(dlp_fs_remove("a", &err));
+
+    if (test_wrap_p()) {
+        GVariantDict *v;
+        errno_t e = ENAMETOOLONG;
+
+        /* failed unlink */
+        assert_true(g_file_set_contents("a", "foo", -1, NULL));
+        assert_true(g_file_test("a", G_FILE_TEST_IS_REGULAR));
+        test_wrap_push(unlink, true, &e);
+        assert_false(dlp_fs_remove("a", &err));
+        TEST_ASSERT_ERR(err, e, "*");
+        assert_true(dlp_fs_remove("a", NULL));
+
+        /* bad stat */
+        v = g_variant_dict_new(NULL);
+        g_variant_dict_insert(v, "errno", "i", EACCES);
+        g_variant_dict_insert(v, "rv", "i", -1);
+        assert_true(g_file_set_contents("a", "foo", -1, NULL));
+        assert_true(g_file_test("a", G_FILE_TEST_IS_REGULAR));
+        test_wrap_push(__xstat64, true, v);
+        assert_false(dlp_fs_remove("a", &err));
+        TEST_ASSERT_ERR(err, EACCES, "*");
+        assert_true(dlp_fs_remove("a", NULL));
+        g_variant_dict_unref(v);
+    }
+}
+
 static void test_mkdtemp(void **state)
 {
     char *cache;
@@ -2063,6 +2109,7 @@ int main(void)
         cmocka_unit_test(test_stale_p),
         cmocka_unit_test(test_mkdir),
         cmocka_unit_test(test_rmdir),
+        cmocka_unit_test(test_remove),
         cmocka_unit_test(test_mkdtemp),
         cmocka_unit_test(test_mkstemp),
         cmocka_unit_test(test_walk_symlink),
