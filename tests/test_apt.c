@@ -1244,8 +1244,8 @@ static void test_apt_sources_read_misc(gpointer data, gconstpointer user_data)
      * Empty file.
      */
     rv = dlp_apt_sources_read(fd, &list, &err);
-    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_REQUIRED);
-    g_assert_false(rv);
+    g_assert_no_error(err);
+    g_assert_true(rv);
     g_assert_null(list);
     g_clear_error(&err);
 

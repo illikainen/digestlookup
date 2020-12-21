@@ -196,7 +196,8 @@ void dlp_apt_release_free(struct dlp_apt_release **release)
  * @param fd      File descriptor to read.
  * @param sources A linked list with one dlp_apt_source structure per element in
  *                the source file.  It must be freed with dlp_apt_sources_free()
- *                after use.
+ *                after use.  Note that the list may be empty (i.e. NULL) if the
+ *                file descriptor is empty.
  * @param error   Optional error information.
  * @return True on success and false on failure.
  */
@@ -303,12 +304,6 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
     g_scanner_destroy(scan);
 
     if (tok != G_TOKEN_EOF) {
-        dlp_apt_sources_free(sources);
-        return false;
-    }
-
-    if (g_list_length(*sources) == 0) {
-        g_set_error(error, DLP_ERROR, DLP_APT_ERROR_REQUIRED, _("no elements"));
         dlp_apt_sources_free(sources);
         return false;
     }
@@ -1028,8 +1023,7 @@ static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
     GRegexMatchFlags flags = (GRegexMatchFlags)0;
     bool match = false;
 
-    g_return_val_if_fail(cfg != NULL && sources != NULL, false);
-    g_return_val_if_fail(regex != NULL && table != NULL, false);
+    g_return_val_if_fail(cfg != NULL && regex != NULL && table != NULL, false);
 
     for (; sources != NULL; sources = sources->next) {
         s = sources->data;
