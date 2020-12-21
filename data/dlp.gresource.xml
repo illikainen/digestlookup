@@ -3,7 +3,9 @@
   <gresource prefix="/dlp">
     <file>config/digestlookup.conf</file>
     <file>keys/debian/buster-automatic.asc</file>
+    <file>keys/debian/buster-security-automatic.asc</file>
     <file>keys/debian/buster-stable.asc</file>
     <file>keys/debian/stretch-automatic.asc</file>
+    <file>keys/debian/stretch-security-automatic.asc</file>
   </gresource>
 </gresources>
