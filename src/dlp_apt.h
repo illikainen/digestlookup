@@ -31,6 +31,7 @@ struct dlp_apt_release {
     char *codename;
     char *suite;
     time_t date;
+    time_t valid_until;
     GList *md5sum;
     GList *sha256;
 };
