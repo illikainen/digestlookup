@@ -874,7 +874,7 @@ static bool dlp_apt_release_download(const char *path,
 
     if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
         url = g_strconcat(cfg->url, "/InRelease", NULL);
-        g_info("InRelease: downloading %s", url);
+        g_info("%s: InRelease: downloading %s", cfg->name, url);
 
         if (!dlp_fs_mkstemp(&untrusted_fd, error) ||
             !dlp_curl_init(&curl, error) ||
@@ -895,7 +895,7 @@ static bool dlp_apt_release_download(const char *path,
             !dlp_gpg_verify_attached(gpg, untrusted_fd, tmp_fd, error)) {
             goto out;
         }
-        g_info("InRelease: verified signature");
+        g_info("%s: InRelease: verified signature", cfg->name);
 
         /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
         if (!dlp_fs_open(path, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR,
@@ -950,7 +950,7 @@ static bool dlp_apt_sources_download(const char *path,
 
     if (!g_file_test(path, G_FILE_TEST_IS_REGULAR)) {
         url = g_strconcat(cfg->url, "/", file->name, NULL);
-        g_info("%s: downloading %s (%.2fM)", file->name, url,
+        g_info("%s: %s: downloading %s (%.2fM)", cfg->name, file->name, url,
                file->size / 1024.0 / 1024);
 
         if (!dlp_fs_mkstemp(&untrusted_fd, error) ||
@@ -970,7 +970,8 @@ static bool dlp_apt_sources_download(const char *path,
         if (!dlp_digest_cmp(untrusted_fd, algo, enc, file->digest, error)) {
             goto out;
         }
-        g_info("%s: verified sha256 (%s)", file->name, file->digest);
+        g_info("%s: %s: verified sha256 (%s)", cfg->name, file->name,
+               file->digest);
 
         /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
         if (!dlp_fs_open(path, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR,
@@ -983,7 +984,8 @@ static bool dlp_apt_sources_download(const char *path,
             !dlp_digest_cmp(untrusted_fd, algo, enc, file->digest, error)) {
             goto out;
         }
-        g_info("%s: verified sha256 (%s)", file->name, file->digest);
+        g_info("%s: %s: verified sha256 (%s)", cfg->name, file->name,
+               file->digest);
     }
 
     rv = true;
