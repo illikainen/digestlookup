@@ -11,6 +11,6 @@
 
 #include "dlp.h"
 
-bool dlp_cli(void) DLP_NODISCARD;
+bool dlp_cli(int argc, char **argv) DLP_NODISCARD;
 
 #endif /* DLP_CLI_H */
