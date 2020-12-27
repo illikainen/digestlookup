@@ -7,5 +7,6 @@
     <file>keys/debian/buster-stable.asc</file>
     <file>keys/debian/stretch-automatic.asc</file>
     <file>keys/debian/stretch-security-automatic.asc</file>
+    <file>keys/gentoo/portage.asc</file>
   </gresource>
 </gresources>
