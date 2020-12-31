@@ -34,6 +34,8 @@ static bool dlp_curl_multi_free(CURLM *multi,
                                 const GPtrArray *easy) DLP_NODISCARD;
 static bool dlp_curl_multi_check_result(CURLM *multi,
                                         GError **error) DLP_NODISCARD;
+static bool dlp_curl_private_get(CURL *easy, struct dlp_curl_private **data,
+                                 GError **error) DLP_NODISCARD;
 
 /**
  * Prepare cURL for threaded use.
@@ -144,7 +146,7 @@ void dlp_curl_free(CURL **easy)
     struct dlp_curl_private *priv;
 
     if (easy != NULL && *easy != NULL) {
-        if (dlp_curl_info(*easy, CURLINFO_PRIVATE, &priv) && priv != NULL) {
+        if (dlp_curl_private_get(*easy, &priv, NULL)) {
             dlp_mem_free(&priv);
         }
         curl_easy_cleanup(*easy);
@@ -340,10 +342,8 @@ static bool dlp_curl_multi_init(CURLM **multi, const GPtrArray *easy,
         CURLMcode mc;
         CURL *e = easy->pdata[i];
 
-        if (!dlp_curl_info(e, CURLINFO_PRIVATE, &priv) || priv == NULL) {
+        if (!dlp_curl_private_get(e, &priv, error)) {
             DLP_DISCARD(dlp_curl_multi_free(m, easy));
-            g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED, "%s",
-                        _("unknown easy handle"));
             return false;
         }
 
@@ -389,7 +389,7 @@ static bool dlp_curl_multi_free(CURLM *multi, const GPtrArray *easy)
         struct dlp_curl_private *priv;
         CURL *e = easy->pdata[i];
 
-        if (dlp_curl_info(e, CURLINFO_PRIVATE, &priv) && priv != NULL) {
+        if (dlp_curl_private_get(e, &priv, NULL)) {
             if (priv->multi == multi) {
                 errors += curl_multi_remove_handle(multi, e) != CURLM_OK;
                 priv->multi = NULL;
@@ -431,10 +431,7 @@ static bool dlp_curl_multi_check_result(CURLM *multi, GError **error)
         }
 
         if (msg->msg == CURLMSG_DONE) {
-            if (!dlp_curl_info(msg->easy_handle, CURLINFO_PRIVATE, &priv) ||
-                priv == NULL) {
-                g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED,
-                            _("unknown easy handle"));
+            if (!dlp_curl_private_get(msg->easy_handle, &priv, error)) {
                 return false;
             }
 
@@ -463,6 +460,44 @@ static bool dlp_curl_multi_check_result(CURLM *multi, GError **error)
             }
         }
     } while (num > 0);
+
+    return true;
+}
+
+/**
+ * Retrieve the private data from an easy handle.
+ *
+ * FIXME: While the CURLOPT_PRIVATE option is set as a CURLOPTTYPE_OBJECTPOINT,
+ *        it's returned as a pointer to char by curl_easy_getinfo().  See:
+ *        - CURLINFO_PRIVATE(3).
+ *        - ISO/IEC 9899:201x 6.3.2.3 §7.
+ *        - ISO/IEC 9899:201x 7.22.3 §1.
+ *        - EXP36-C-EX2.
+ *
+ * @param easy  A handle whose private data to retrieve.
+ * @param error Optional error information.
+ * @return True on success and false on failure.
+ */
+static bool dlp_curl_private_get(CURL *easy, struct dlp_curl_private **data,
+                                 GError **error)
+{
+    char *ptr;
+
+    _Static_assert(_Alignof(char) == 1, "alignment");
+    _Static_assert(sizeof(char *) == sizeof(struct dlp_curl_private *), "size");
+    _Static_assert(GLIB_CHECK_VERSION(2, 46, 0), "glib");
+
+    if (!dlp_curl_info(easy, CURLINFO_PRIVATE, &ptr) || ptr == NULL ||
+        (uintptr_t)ptr % _Alignof(struct dlp_curl_private) != 0) {
+        g_set_error(error, DLP_ERROR, DLP_CURL_ERROR_FAILED,
+                    _("invalid private data"));
+        return false;
+    }
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-align"
+    *data = (struct dlp_curl_private *)ptr;
+#pragma GCC diagnostic pop
 
     return true;
 }
