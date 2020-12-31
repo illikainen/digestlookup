@@ -748,8 +748,11 @@ static void test_read_bytes_char(void **state)
     assert_true(dlp_fs_mkstemp(&fd, NULL));
     assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wassign-enum"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
     assert_false(dlp_fs_read_bytes_impl(fd, 999, buf, 3, &err));
+#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
     TEST_ASSERT_ERR(err, EINVAL, "*");
     assert_true(dlp_fs_close(&fd, NULL));
@@ -1101,8 +1104,11 @@ static void test_write_bytes_char(void **state)
      */
     assert_true(dlp_fs_mkstemp(&fd, NULL));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wassign-enum"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
     assert_false(dlp_fs_write_bytes_impl(fd, 999, "foo", 3, &err));
+#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
     TEST_ASSERT_ERR(err, EINVAL, "*");
     assert_true(dlp_fs_close(&fd, NULL));
@@ -2008,10 +2014,10 @@ static void test_remove(void **state)
 
 static void test_mkdtemp(void **state)
 {
-    char *cache;
     char *path;
     struct stat st;
     errno_t e;
+    char *cache = NULL;
     GError *err = NULL;
     struct state *s = *state;
 
@@ -2047,9 +2053,9 @@ static void test_mkdtemp(void **state)
 
 static void test_mkstemp(void **state)
 {
-    char *cache;
     int fd;
     errno_t e;
+    char *cache = NULL;
     GError *err = NULL;
 
     (void)state;

@@ -239,11 +239,11 @@ static void test_archive_read_fail_open_filename(gpointer data,
 static void test_archive_read_fail_next_header(gpointer data,
                                                gconstpointer user_data)
 {
-    bool eof;
     struct archive *a;
     struct archive_entry *e;
     GError *err = NULL;
     struct state *s = data;
+    bool eof = false;
 
     (void)user_data;
 

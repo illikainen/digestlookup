@@ -93,8 +93,11 @@ static void test_digest_compute_hex(gpointer data, gconstpointer user_data)
     g_assert_true(dlp_fs_truncate(fd, 0, NULL));
     g_assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wassign-enum"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
     rv = dlp_digest_compute(fd, 999, DLP_DIGEST_ENCODE_HEX, &digest, &err);
+#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
     g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_ALGORITHM);
     g_assert_false(rv);
@@ -108,8 +111,11 @@ static void test_digest_compute_hex(gpointer data, gconstpointer user_data)
     g_assert_true(dlp_fs_truncate(fd, 0, NULL));
     g_assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wassign-enum"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
     rv = dlp_digest_compute(fd, G_CHECKSUM_SHA256, 999, &digest, &err);
+#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
     g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_ENCODE);
     g_assert_false(rv);
@@ -326,11 +332,14 @@ static void test_digest_cmp_hex(gpointer data, gconstpointer user_data)
     g_assert_true(dlp_fs_truncate(fd, 0, NULL));
     g_assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wassign-enum"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
     rv = dlp_digest_cmp(fd, 999, DLP_DIGEST_ENCODE_HEX,
                         "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e"
                         "886266e7ae",
                         &err);
+#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
     g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_ALGORITHM);
     g_assert_false(rv);
@@ -343,11 +352,14 @@ static void test_digest_cmp_hex(gpointer data, gconstpointer user_data)
     g_assert_true(dlp_fs_truncate(fd, 0, NULL));
     g_assert_true(dlp_fs_write_bytes(fd, "foo", 3, NULL));
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wassign-enum"
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wassign-enum"
     rv = dlp_digest_cmp(fd, G_CHECKSUM_SHA256, 999,
                         "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e"
                         "886266e7ae",
                         &err);
+#pragma clang diagnostic pop
 #pragma GCC diagnostic pop
     g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_ENCODE);
     g_assert_false(rv);

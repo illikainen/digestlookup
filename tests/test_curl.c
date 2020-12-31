@@ -499,7 +499,10 @@ static void test_head_mtime(void **state)
     assert_true(dlp_curl_info(curl[0], CURLINFO_FILETIME, &mtime));
     assert_true(mtime == 12345);
     dlp_curl_free(&curl[0]);
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-zero-length"
     TEST_ASSERT_FD_CONTENT(s->tmp[0].fd, "");
+#pragma GCC diagnostic pop
 
     dlp_mem_free(&url);
 }
