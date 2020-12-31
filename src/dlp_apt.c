@@ -913,6 +913,10 @@ out:
     rv = dlp_fs_close(&untrusted_fd, rv ? error : NULL) && rv;
     rv = dlp_fs_close(&tmp_fd, rv ? error : NULL) && rv;
     if (!rv) {
+        /*
+         * The release file isn't written here unless its signature is
+         * successfully verified; so discarding errors is OK-ish.
+         */
         DLP_DISCARD(dlp_fs_remove(path, NULL));
     }
 
@@ -994,6 +998,11 @@ out:
     rv = dlp_fs_close(&trusted_fd, rv ? error : NULL) && rv;
     rv = dlp_fs_close(&untrusted_fd, rv ? error : NULL) && rv;
     if (!rv) {
+        /*
+         * The source file isn't written here unless its digest (which
+         * originates from a PGP-verified release file) is successfully
+         * verified; so discarding errors is OK-ish.
+         */
         DLP_DISCARD(dlp_fs_remove(path, NULL));
     }
 
