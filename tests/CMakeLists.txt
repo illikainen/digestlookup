@@ -109,7 +109,7 @@ endforeach()
 #
 # Fuzz targets.
 #
-if(CMAKE_C_COMPILER_ID STREQUAL Clang)
+if(CMAKE_C_COMPILER_ID STREQUAL Clang AND ${CMAKE_BUILD_TYPE} STREQUAL Debug)
     foreach(file ${fuzz})
         string(REGEX REPLACE "/" "-" bin "${file}")
         string(REGEX REPLACE "\.c$" "" bin "${bin}")
