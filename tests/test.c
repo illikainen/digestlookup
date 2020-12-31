@@ -794,4 +794,60 @@ lzma_ret __wrap_lzma_code(lzma_stream *strm, lzma_action action)
     return __real_lzma_code(strm, action);
 }
 
+/* cppcheck-suppress unusedFunction */
+struct archive *__wrap_archive_read_new(void)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_archive_read_new();
+}
+
+/* cppcheck-suppress unusedFunction */
+int __wrap_archive_read_support_format_tar(struct archive *archive)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return GPOINTER_TO_INT(elt.value);
+    }
+    return __real_archive_read_support_format_tar(archive);
+}
+
+/* cppcheck-suppress unusedFunction */
+int __wrap_archive_read_support_filter_xz(struct archive *archive)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return GPOINTER_TO_INT(elt.value);
+    }
+    return __real_archive_read_support_filter_xz(archive);
+}
+
+/* cppcheck-suppress unusedFunction */
+const char *__wrap_archive_entry_pathname(struct archive_entry *entry)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        return elt.value;
+    }
+    return __real_archive_entry_pathname(entry);
+}
+
+/* cppcheck-suppress unusedFunction */
+int __wrap_archive_read_free(struct archive *archive)
+{
+    struct test_wrap elt = { 0 };
+
+    if (test_wrap_pop(&elt) && elt.wrap) {
+        __real_archive_read_free(archive);
+        return GPOINTER_TO_INT(elt.value);
+    }
+    return __real_archive_read_free(archive);
+}
+
 #endif /* TEST_WRAP */

@@ -14,6 +14,8 @@
 
 #include <sys/stat.h>
 
+#include <archive.h>
+#include <archive_entry.h>
 #include <cmocka.h>
 #include <curl/curl.h>
 #include <gio/gio.h>
@@ -259,5 +261,20 @@ lzma_ret __wrap_lzma_code(lzma_stream *strm, lzma_action action)
     lzma_nothrow lzma_attr_warn_unused_result;
 lzma_ret __real_lzma_code(lzma_stream *strm, lzma_action action)
     lzma_nothrow lzma_attr_warn_unused_result;
+
+struct archive *__wrap_archive_read_new(void);
+struct archive *__real_archive_read_new(void);
+
+int __wrap_archive_read_support_format_tar(struct archive *archive);
+int __real_archive_read_support_format_tar(struct archive *archive);
+
+int __wrap_archive_read_support_filter_xz(struct archive *archive);
+int __real_archive_read_support_filter_xz(struct archive *archive);
+
+const char *__wrap_archive_entry_pathname(struct archive_entry *entry);
+const char *__real_archive_entry_pathname(struct archive_entry *entry);
+
+int __wrap_archive_read_free(struct archive *archive);
+int __real_archive_read_free(struct archive *archive);
 
 #endif /* TEST_H */
