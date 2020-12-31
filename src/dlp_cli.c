@@ -25,7 +25,8 @@ struct dlp_cli_thread {
     struct dlp_table *table;
 };
 
-static bool dlp_cli_contains(char **strv, const char *str) DLP_NODISCARD;
+static bool dlp_cli_lookup_p(const struct dlp_cfg_repo *repo,
+                             char **strv) DLP_NODISCARD;
 static void *dlp_cli_lookup(gpointer data) DLP_NODISCARD;
 
 /**
@@ -66,7 +67,7 @@ bool dlp_cli(int argc, char **argv)
     threads = g_ptr_array_new_full(0, g_free);
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         repo = repos->data;
-        if (opts->repos == NULL || dlp_cli_contains(opts->repos, repo->name)) {
+        if (opts->repos == NULL || dlp_cli_lookup_p(repo, opts->repos)) {
             thread = dlp_mem_alloc(sizeof(*thread));
             thread->opts = opts;
             thread->table = table;
@@ -106,18 +107,19 @@ out:
 }
 
 /**
- * Check if an array of strings contains a string.
+ * Check if a repository should be included in the lookup.
  *
+ * @param repo  A repository to check for inclusion.
  * @param strv  A NULL-terminated array of strings.
- * @param str   A string to search for.
  * @return True if the string is found and false otherwise.
  */
-static bool dlp_cli_contains(char **strv, const char *str)
+static bool dlp_cli_lookup_p(const struct dlp_cfg_repo *repo, char **strv)
 {
-    g_return_val_if_fail(strv != NULL && str != NULL, false);
+    g_return_val_if_fail(strv != NULL && repo != NULL, false);
 
     for (; *strv != NULL; strv++) {
-        if (g_strcmp0(*strv, str) == 0) {
+        if (g_strcmp0(*strv, repo->name) == 0 ||
+            g_strcmp0(*strv, repo->backend->name) == 0) {
             return true;
         }
     }
