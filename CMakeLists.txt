@@ -110,6 +110,7 @@ add_flag(ALL "-Werror=sentinel")
 add_flag(ALL "-Werror=uninitialized")
 add_flag(ALL "-Werror=unused-result")
 
+add_flag(ALL "-Wno-c++98-compat")
 add_flag(ALL "-Wno-disabled-macro-expansion")
 add_flag(ALL "-Wno-padded")
 
