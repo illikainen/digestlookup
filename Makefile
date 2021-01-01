@@ -4,6 +4,7 @@ TARGET ?=
 JOBS ?= 5
 FUZZ_ARGS ?= -max_total_time=10
 
+BIN := digestlookup
 SOURCE := $(PWD)
 BUILD := $(SOURCE)/build
 BUILD_DEBUG := $(BUILD)/debug
@@ -19,6 +20,7 @@ $(BUILD_DEBUG):
 
 release: $(BUILD_RELEASE)
 	@cmake --build $(BUILD_RELEASE) -j $(JOBS) --target $(TARGET)
+	@cp $(BUILD_RELEASE)/src/$(BIN) .
 
 debug: $(BUILD_DEBUG)
 	@cmake --build $(BUILD_DEBUG) -j $(JOBS) --target $(TARGET)
