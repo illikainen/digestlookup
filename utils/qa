@@ -9,7 +9,6 @@ import sys
 from argparse import ArgumentParser
 from contextlib import contextmanager
 from difflib import unified_diff
-from itertools import chain
 from logging import (
     DEBUG,
     INFO,
@@ -19,7 +18,7 @@ from logging import (
     debug,
     error,
 )
-from os import X_OK, access, chdir, getcwd
+from os import chdir, getcwd
 from pathlib import Path
 from subprocess import run
 
@@ -238,46 +237,6 @@ class ClangFormat(Backend):
             )
 
 
-class Coverage(Backend):
-    name = "coverage"
-
-    def check(self):
-        profraw = list(self._build_path.rglob("*.profraw"))
-        if not profraw:
-            return 1
-
-        profdata = self._build_path / "profdata"
-        p = call("llvm-profdata", "merge", "--output", profdata, *profraw)
-        if p.returncode:
-            return 1
-
-        objects = chain.from_iterable(
-            chain.from_iterable(
-                ["-object", bin_path]
-                for bin_path in raw_path.rglob("*")
-                if bin_path.is_file() and access(bin_path, X_OK)
-            )
-            for raw_path in set([p.parent for p in profraw])
-        )
-
-        common = [
-            "-ignore-filename-regex=tests/",
-            "-instr-profile",
-            profdata,
-            f"-use-color={int(sys.stdout.isatty())}",
-            *objects,
-        ]
-
-        p = call("llvm-cov", "show", "-region-coverage-lt=100", *common)
-        error(p.stdout)
-        error(p.stderr)
-
-        p = call("llvm-cov", "report", *common)
-        error(p.stdout)
-        error(p.stderr)
-        return p.returncode
-
-
 class Handler(StreamHandler):
     def emit(self, record):
         record.msg = record.msg.rstrip()
@@ -346,7 +305,7 @@ def main():
             return 1
 
         paths = project_paths()
-        for cls in [Coverage, ClangFormat, ClangTidy, CppCheck]:
+        for cls in [ClangFormat, ClangTidy, CppCheck]:
             if not args.enable or cls.name in args.enable:
                 ins = cls(paths, args.build_path)
                 if "fix" in args.action:

@@ -37,16 +37,20 @@ test-debug: debug
 
 test: test-debug
 
+coverage: test-debug
+	@gcovr --use-gcov-files --keep --exclude '^tests/' --sort-percentage
+
+check: coverage
+	@cmake --build $(BUILD_DEBUG) --target check
+
 clean:
 	@rm -rf $(BUILD)
 
 install: release
 	@cmake --build $(BUILD_RELEASE) --target install
 
-check: test-debug
-	@cmake --build $(BUILD_DEBUG) --target check
-
 fix: $(BUILD_DEBUG)
 	@cmake --build $(BUILD_DEBUG) --target fix
 
-.PHONY: all release debug test-release test-debug test clean install check fix
+.PHONY: all release debug test-release test-debug test coverage check \
+	clean install fix

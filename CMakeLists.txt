@@ -178,8 +178,7 @@ add_flag(RELEASE "-pie")
 #
 add_flag(DEBUG "-O0")
 add_flag(DEBUG "-fno-omit-frame-pointer")
-add_flag(DEBUG "-fprofile-instr-generate")
-add_flag(DEBUG "-fcoverage-mapping")
+add_flag(DEBUG "--coverage")
 
 # FIXME: investigate why ASan with gcc 8.3.0 occasionally enters a seemingly
 # infinite loop where the only output is AddressSanitizer:DEADLYSIGNAL.

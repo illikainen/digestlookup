@@ -61,6 +61,14 @@ add_pkg_config(TARGET test_obj SCOPE INTERFACE PKG libmicrohttpd REQUIRED)
 #
 # Fixtures.
 #
+add_test("fixture_gcov_cleanup" "${CMAKE_COMMAND}"
+    -D "QA_ACTION=gcov-cleanup"
+    -D "QA_GCOV_COMPILER=${CMAKE_C_COMPILER_ID}"
+    -P "${qa}")
+set_tests_properties("fixture_gcov_cleanup" PROPERTIES
+    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
+    FIXTURES_CLEANUP "fixture_gcov_cleanup")
+
 foreach(file ${fixtures})
     string(REGEX REPLACE "/" "-" bin "${file}")
     string(REGEX REPLACE "\.c$" "" bin "${bin}")
@@ -99,9 +107,13 @@ foreach(file ${tests})
         -P "${qa}")
 
     set(env ${environ} "LLVM_PROFILE_FILE=${bin}-%m%c.profraw")
+    set(fixtures
+        "${fixture}_setup"
+        "${fixture}_cleanup"
+        "fixture_gcov_cleanup")
     set_tests_properties("${bin}" PROPERTIES
         ENVIRONMENT "${env}"
-        FIXTURES_REQUIRED "${fixture}_setup;${fixture}_cleanup")
+        FIXTURES_REQUIRED "${fixtures}")
     copy_properties("${bin}" PRIVATE test_obj)
     target_link_libraries("${bin}" PRIVATE test_obj)
 endforeach()
@@ -126,9 +138,13 @@ if(CMAKE_C_COMPILER_ID STREQUAL Clang AND ${CMAKE_BUILD_TYPE} STREQUAL Debug)
             -P "${qa}")
 
         set(env ${environ} "LLVM_PROFILE_FILE=${bin}-%m%c.profraw")
+        set(fixtures
+            "${fixture}_setup"
+            "${fixture}_cleanup"
+            "fixture_gcov_cleanup")
         set_tests_properties("${bin}" PROPERTIES
             ENVIRONMENT "${env}"
-            FIXTURES_REQUIRED "${fixture}_setup;${fixture}_cleanup")
+            FIXTURES_REQUIRED "${fixtures}")
         copy_properties("${bin}" PRIVATE "test_obj")
         target_compile_options("${bin}" PRIVATE -fsanitize=fuzzer)
         target_link_options("${bin}" PRIVATE -fsanitize=fuzzer)
