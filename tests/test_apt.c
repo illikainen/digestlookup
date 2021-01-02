@@ -93,6 +93,14 @@ static void prepare_fd(int fd, const char *buf)
     }
 }
 
+static int compare_str(gconstpointer a, gconstpointer b)
+{
+    if (a != NULL && b != NULL) {
+        return g_strcmp0(*(const char *const *)a, *(const char *const *)b);
+    }
+    return -1;
+}
+
 static void test_apt_ctor(gpointer data, gconstpointer user_data)
 {
     struct dlp_backend *be;
@@ -2453,10 +2461,10 @@ static void test_apt_lookup_bad_digest(gpointer data, gconstpointer user_data)
     paths = g_ptr_array_new_full(0, g_free);
     rv = dlp_fs_walk(path, test_apt_lookup_walk, paths, NULL);
     g_assert_true(rv);
-    g_ptr_array_sort(paths, g_str_equal);
+    g_ptr_array_sort(paths, compare_str);
     g_assert_cmpuint(paths->len, ==, 2);
-    g_assert_cmpstr(paths->pdata[0], ==, "main_source_Sources_xz");
-    g_assert_cmpstr(paths->pdata[1], ==, "Release");
+    g_assert_cmpstr(paths->pdata[0], ==, "Release");
+    g_assert_cmpstr(paths->pdata[1], ==, "main_source_Sources_xz");
 
     dlp_mem_free(&cfgdata);
     dlp_mem_free(&rls);
@@ -2617,10 +2625,10 @@ static void test_apt_lookup_bad_cache_digest(gpointer data,
     paths = g_ptr_array_new_full(0, g_free);
     rv = dlp_fs_walk(path, test_apt_lookup_walk, paths, NULL);
     g_assert_true(rv);
-    g_ptr_array_sort(paths, g_str_equal);
+    g_ptr_array_sort(paths, compare_str);
     g_assert_cmpuint(paths->len, ==, 2);
-    g_assert_cmpstr(paths->pdata[0], ==, "contrib_source_Sources_xz");
-    g_assert_cmpstr(paths->pdata[1], ==, "Release");
+    g_assert_cmpstr(paths->pdata[0], ==, "Release");
+    g_assert_cmpstr(paths->pdata[1], ==, "contrib_source_Sources_xz");
 
     dlp_mem_free(&cfgdata);
     dlp_mem_free(&rls);
