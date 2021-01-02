@@ -44,7 +44,7 @@ check: coverage
 	@cmake --build $(BUILD_DEBUG) --target check
 
 clean:
-	@rm -rf $(BUILD)
+	@rm -rf $(BUILD) $(BIN)
 
 install: release
 	@cmake --build $(BUILD_RELEASE) --target install
