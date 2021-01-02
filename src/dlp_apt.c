@@ -543,7 +543,7 @@ static bool dlp_apt_parse_files(GScanner *scan, void *dst)
          */
         tok = g_scanner_peek_next_token(scan);
         if (tok == G_TOKEN_EOF || tok == G_TOKEN_SYMBOL ||
-            (tok == G_TOKEN_CHAR && scan->value.v_char == '\n')) {
+            (tok == G_TOKEN_CHAR && scan->next_value.v_char == '\n')) {
             success = true;
             break;
         }
