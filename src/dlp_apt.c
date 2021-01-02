@@ -537,7 +537,7 @@ static bool dlp_apt_parse_files(GScanner *scan, void *dst)
         return false;
     }
 
-    do {
+    while (true) {
         /*
          * End tokens.
          */
@@ -597,7 +597,7 @@ static bool dlp_apt_parse_files(GScanner *scan, void *dst)
             dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
             break;
         }
-    } while (true);
+    }
 
     if (!success) {
         dlp_apt_files_free(files);
