@@ -564,7 +564,8 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
 
                 for (elt = mnfst; elt != NULL; elt = elt->next) {
                     e = elt->data;
-                    if (e->type == DLP_PORTAGE_TYPE_DIST) {
+                    if (e->type == DLP_PORTAGE_TYPE_DIST ||
+                        e->type == DLP_PORTAGE_TYPE_AUX) {
                         if (!dlp_table_add_row(table, error, "repository",
                                                cfg->name, "package", pkg,
                                                "file", e->file, "algorithm",
