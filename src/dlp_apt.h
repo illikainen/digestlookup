@@ -38,6 +38,7 @@ struct dlp_apt_release {
 
 struct dlp_apt_source {
     char *package;
+    GPtrArray *binary;
     GList *files;
     GList *checksums_sha256;
 };

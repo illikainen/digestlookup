@@ -53,6 +53,7 @@ static bool dlp_apt_symbols_read(GScanner *scan, GError **error) DLP_NODISCARD;
 static bool dlp_apt_parse_package(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_files(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_word(GScanner *scan, void *dst) DLP_NODISCARD;
+static bool dlp_apt_parse_words(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_date(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
@@ -207,7 +208,9 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
         /* clang-format off */
         { .name = "Architecture",             .fn = dlp_apt_parse_ignore },
         { .name = "Autobuild",                .fn = dlp_apt_parse_ignore },
-        { .name = "Binary",                   .fn = dlp_apt_parse_ignore },
+        { .name = "Binary",                   .fn = dlp_apt_parse_words,
+          .offset = G_STRUCT_OFFSET(struct dlp_apt_source, binary),
+          .required = true },
         { .name = "Build-Conflicts",          .fn = dlp_apt_parse_ignore },
         { .name = "Build-Conflicts-Indep",    .fn = dlp_apt_parse_ignore },
         { .name = "Build-Depends",            .fn = dlp_apt_parse_ignore },
@@ -639,6 +642,77 @@ static bool dlp_apt_parse_word(GScanner *scan, void *dst)
     tok = g_scanner_get_next_token(scan);
     if (tok != G_TOKEN_CHAR || scan->value.v_char != '\n') {
         dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Parse a list of folded words.
+ *
+ * See:
+ * - Debian Policy Manual, 5.1.
+ *
+ * @param scan  Scanner to use.
+ * @param dst   Destination for the field value.
+ * @return True on success and false on failure.
+ */
+static bool dlp_apt_parse_words(GScanner *scan, void *dst)
+{
+    guint scope;
+    GTokenType tok;
+    GPtrArray **words = dst;
+    bool success = false;
+
+    g_return_val_if_fail(scan != NULL && words != NULL, false);
+
+    scan->config->cset_identifier_first = G_CSET_A_2_Z G_CSET_a_2_z
+        G_CSET_DIGITS "!\"$%&'()*+-./;<=>?@[\\]^_`{|}~";
+    scan->config->cset_identifier_nth = scan->config->cset_identifier_first;
+    scan->config->cset_skip_characters = "\n,";
+
+    scope = g_scanner_set_scope(scan, 1);
+    *words = g_ptr_array_new_full(0, g_free);
+
+    while (true) {
+        /*
+         * Leading whitespace used as a separator between the field name and
+         * its first value as well as an indicator of a continuation line.
+         */
+        tok = g_scanner_get_next_token(scan);
+        if (tok != G_TOKEN_CHAR || scan->value.v_char != ' ') {
+            dlp_apt_unexp_token(scan, G_TOKEN_CHAR);
+            break;
+        }
+
+        /*
+         * Single word.
+         */
+        tok = g_scanner_get_next_token(scan);
+        if (tok != G_TOKEN_STRING || scan->value.v_string == NULL) {
+            dlp_apt_unexp_token(scan, G_TOKEN_STRING);
+            break;
+        }
+        g_ptr_array_add(*words, g_strdup(scan->value.v_string));
+
+        /*
+         * Possible end-of-field token.
+         */
+        scan->config->scope_0_fallback = true;
+        tok = g_scanner_peek_next_token(scan);
+        if (tok != G_TOKEN_CHAR) {
+            success = true;
+            break;
+        }
+        scan->config->scope_0_fallback = false;
+    }
+
+    *scan->config = dlp_apt_config;
+    g_scanner_set_scope(scan, scope);
+
+    if (!success) {
+        dlp_mem_ptr_array_unref(words);
         return false;
     }
 

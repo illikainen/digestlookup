@@ -756,6 +756,7 @@ static void test_apt_sources_read_package(gpointer data,
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n\n"
                    "Package: baz\n"
+                   "Binary: qux\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -785,6 +786,7 @@ static void test_apt_sources_read_package(gpointer data,
      * Success.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -802,6 +804,7 @@ static void test_apt_sources_read_package(gpointer data,
      * Success with missing space.
      */
     prepare_fd(fd, "Package:foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -819,6 +822,7 @@ static void test_apt_sources_read_package(gpointer data,
      * Success with numeric name.
      */
     prepare_fd(fd, "Package: 123\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -833,6 +837,7 @@ static void test_apt_sources_read_package(gpointer data,
     dlp_apt_sources_free(&list);
 
     prepare_fd(fd, "Package: 1.23\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -847,6 +852,7 @@ static void test_apt_sources_read_package(gpointer data,
     dlp_apt_sources_free(&list);
 
     prepare_fd(fd, "Package: 0x123\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -864,6 +870,7 @@ static void test_apt_sources_read_package(gpointer data,
      * Too short name.
      */
     prepare_fd(fd, "Package: x\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -883,6 +890,7 @@ static void test_apt_sources_read_package(gpointer data,
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n"
+                   "Binary: bar\n"
                    "Package: foo");
     rv = dlp_apt_sources_read(fd, &list, &err);
     g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
@@ -894,6 +902,7 @@ static void test_apt_sources_read_package(gpointer data,
      * Missing separator.
      */
     prepare_fd(fd, "Package foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -909,12 +918,13 @@ static void test_apt_sources_read_package(gpointer data,
      * EOF before separator.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n\n"
-                   "Binary");
+                   "Python-Version");
     rv = dlp_apt_sources_read(fd, &list, &err);
     g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
     g_assert_false(rv);
@@ -927,6 +937,231 @@ static void test_apt_sources_read_package(gpointer data,
     prepare_fd(fd, "Package: foo\n"
                    "Binary: bar\n"
                    "Package: baz\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_DUPLICATE);
+    g_assert_false(rv);
+    g_assert_null(list);
+    g_clear_error(&err);
+
+    g_assert_true(dlp_fs_close(&fd, NULL));
+}
+
+static void test_apt_sources_read_binary(gpointer data, gconstpointer user_data)
+{
+    int fd;
+    bool rv;
+    GList *list;
+    struct dlp_apt_source *s;
+    GError *err = NULL;
+
+    (void)data;
+    (void)user_data;
+
+    g_assert_true(dlp_fs_mkstemp(&fd, NULL));
+
+    /*
+     * Missing field.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n"
+                   "Package: baz\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_REQUIRED);
+    g_assert_false(rv);
+    g_assert_null(list);
+    g_clear_error(&err);
+
+    prepare_fd(fd, "Package: foo\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_REQUIRED);
+    g_assert_false(rv);
+    g_assert_null(list);
+    g_clear_error(&err);
+
+    /*
+     * Missing value.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: \n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_assert_null(list);
+    g_clear_error(&err);
+
+    /*
+     * Success.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpuint(g_list_length(list), ==, 1);
+    g_assert_nonnull(s = g_list_nth_data(list, 0));
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "bar");
+    dlp_apt_sources_free(&list);
+
+    /*
+     * Success with numeric name.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: 123\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpuint(g_list_length(list), ==, 1);
+    g_assert_nonnull(s = g_list_nth_data(list, 0));
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "123");
+    dlp_apt_sources_free(&list);
+
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: 1.23\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpuint(g_list_length(list), ==, 1);
+    g_assert_nonnull(s = g_list_nth_data(list, 0));
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "1.23");
+    dlp_apt_sources_free(&list);
+
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: 0x123\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpuint(g_list_length(list), ==, 1);
+    g_assert_nonnull(s = g_list_nth_data(list, 0));
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "0x123");
+    dlp_apt_sources_free(&list);
+
+    /*
+     * Success with binary names matching a symbol.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: Autobuild\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpuint(g_list_length(list), ==, 1);
+    g_assert_nonnull(s = g_list_nth_data(list, 0));
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "Autobuild");
+    dlp_apt_sources_free(&list);
+
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: Autobuild, Dgit, Directory,\n"
+                   " Binary, Files\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_no_error(err);
+    g_assert_true(rv);
+    g_assert_cmpuint(g_list_length(list), ==, 1);
+    g_assert_nonnull(s = g_list_nth_data(list, 0));
+    g_assert_cmpuint(s->binary->len, ==, 5);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "Autobuild");
+    g_assert_cmpstr(s->binary->pdata[1], ==, "Dgit");
+    g_assert_cmpstr(s->binary->pdata[2], ==, "Directory");
+    g_assert_cmpstr(s->binary->pdata[3], ==, "Binary");
+    g_assert_cmpstr(s->binary->pdata[4], ==, "Files");
+    dlp_apt_sources_free(&list);
+
+    /*
+     * Too short name.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: x\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_assert_null(list);
+    g_clear_error(&err);
+
+    /*
+     * Missing separator.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary bar\n"
+                   "Files:\n"
+                   " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
+                   "Checksums-Sha256:\n"
+                   " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
+                   "ca546b 456 f2\n\n");
+    rv = dlp_apt_sources_read(fd, &list, &err);
+    g_assert_error(err, DLP_ERROR, DLP_APT_ERROR_LEX);
+    g_assert_false(rv);
+    g_assert_null(list);
+    g_clear_error(&err);
+
+    /*
+     * Duplicate.
+     */
+    prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
+                   "Binary: baz\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -960,6 +1195,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
      */
     prepare_fd(fd, "Autobuild:\n"
                    "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -982,6 +1218,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
     prepare_fd(fd, "Autobuild:\n"
                    "Testsuite-Triggers:\n"
                    "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1005,7 +1242,8 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n"
-                   "Package: foo\n");
+                   "Package: foo\n"
+                   "Binary: bar\n");
     rv = dlp_apt_sources_read(fd, &list, &err);
     g_assert_no_error(err);
     g_assert_true(rv);
@@ -1024,7 +1262,8 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n"
-                   "Package: foo\n");
+                   "Package: foo\n"
+                   "Binary: bar\n");
     rv = dlp_apt_sources_read(fd, &list, &err);
     g_assert_no_error(err);
     g_assert_true(rv);
@@ -1040,6 +1279,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
      * Last symbol with empty value.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1061,6 +1301,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
      * Last symbol with a value.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1082,6 +1323,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
      * Last symbol with empty value and no newline.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1103,6 +1345,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
      * Last symbol with a value and no newline.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1132,7 +1375,8 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n"
-                   "Package: abcd\n");
+                   "Package: abcd\n"
+                   "Binary: bar\n");
     rv = dlp_apt_sources_read(fd, &list, &err);
     g_assert_no_error(err);
     g_assert_true(rv);
@@ -1155,7 +1399,8 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n"
-                   "Package: abcd\n");
+                   "Package: abcd\n"
+                   "Binary: bar\n");
     rv = dlp_apt_sources_read(fd, &list, &err);
     g_assert_no_error(err);
     g_assert_true(rv);
@@ -1176,6 +1421,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
                    " baz\n"
                    "   qux\n"
                    "Package: abcd\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1195,6 +1441,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
     prepare_fd(fd, "Autobuild:\nfoo\nbar\n baz\n   qux\n"
                    "Testsuite-Triggers: x\n    y\n"
                    "Package: abcd\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1219,6 +1466,7 @@ static void test_apt_sources_read_ignore(gpointer data, gconstpointer user_data)
         test_wrap_push(g_scanner_peek_next_token, true, &tok);
         test_wrap_push(g_scanner_peek_next_token, false, NULL);
         prepare_fd(fd, "Package: foo\n"
+                       "Binary: bar\n"
                        "Autobuild: no\n"
                        "Files:\n"
                        " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
@@ -1261,6 +1509,7 @@ static void test_apt_sources_read_misc(gpointer data, gconstpointer user_data)
      * Unknown symbol.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1277,6 +1526,7 @@ static void test_apt_sources_read_misc(gpointer data, gconstpointer user_data)
      * Last element separator.
      */
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: bar\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1288,16 +1538,20 @@ static void test_apt_sources_read_misc(gpointer data, gconstpointer user_data)
     g_assert_cmpuint(g_list_length(list), ==, 1);
     g_assert_nonnull(s = g_list_nth_data(list, 0));
     g_assert_cmpstr(s->package, ==, "foo");
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "bar");
     g_clear_error(&err);
     dlp_apt_sources_free(&list);
 
     prepare_fd(fd, "Package: foo\n"
+                   "Binary: abc\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
                    " 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805da"
                    "ca546b 456 f2\n\n"
                    "Package: bar\n"
+                   "Binary: def\n"
                    "Files:\n"
                    " 68b329da9893e34099c7d8ad5cb9c940 123 f1\n"
                    "Checksums-Sha256:\n"
@@ -1309,8 +1563,12 @@ static void test_apt_sources_read_misc(gpointer data, gconstpointer user_data)
     g_assert_cmpuint(g_list_length(list), ==, 2);
     g_assert_nonnull(s = g_list_nth_data(list, 0));
     g_assert_cmpstr(s->package, ==, "bar");
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "def");
     g_assert_nonnull(s = g_list_nth_data(list, 1));
     g_assert_cmpstr(s->package, ==, "foo");
+    g_assert_cmpuint(s->binary->len, ==, 1);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "abc");
     g_clear_error(&err);
     dlp_apt_sources_free(&list);
 
@@ -1346,6 +1604,11 @@ static void test_apt_sources_read_full(gpointer data, gconstpointer user_data)
     g_assert_cmpuint(g_list_length(s->files), ==, 3);
     g_assert_cmpuint(g_list_length(s->checksums_sha256), ==, 3);
     g_assert_cmpstr(s->package, ==, "libdisasm");
+    g_assert_cmpuint(s->binary->len, ==, 3);
+    g_ptr_array_sort(s->binary, compare_str);
+    g_assert_cmpstr(s->binary->pdata[0], ==, "libdisasm-dev");
+    g_assert_cmpstr(s->binary->pdata[1], ==, "libdisasm0");
+    g_assert_cmpstr(s->binary->pdata[2], ==, "x86dis");
     dlp_apt_sources_free(&list);
 
     /*
@@ -1363,31 +1626,43 @@ static void test_apt_sources_read_full(gpointer data, gconstpointer user_data)
 
     g_assert_nonnull(s = g_list_nth_data(list, 0));
     g_assert_cmpstr(s->package, ==, "util-linux");
+    g_assert_cmpuint(s->binary->len, ==, 24);
     g_assert_cmpuint(g_list_length(s->files), ==, 3);
     g_assert_cmpuint(g_list_length(s->checksums_sha256), ==, 3);
 
     g_assert_nonnull(s = g_list_nth_data(list, 1));
     g_assert_cmpstr(s->package, ==, "libdisasm");
+    g_assert_cmpuint(s->binary->len, ==, 3);
     g_assert_cmpuint(g_list_length(s->files), ==, 3);
     g_assert_cmpuint(g_list_length(s->checksums_sha256), ==, 3);
 
     g_assert_nonnull(s = g_list_nth_data(list, 2));
     g_assert_cmpstr(s->package, ==, "elfutils");
+    g_assert_cmpuint(s->binary->len, ==, 7);
     g_assert_cmpuint(g_list_length(s->files), ==, 4);
     g_assert_cmpuint(g_list_length(s->checksums_sha256), ==, 4);
 
     g_assert_nonnull(s = g_list_nth_data(list, 3));
     g_assert_cmpstr(s->package, ==, "binutils");
+    g_assert_cmpuint(s->binary->len, ==, 80);
+    g_assert_true(g_ptr_array_find_with_equal_func(s->binary,
+                                                   "binutils-for-host",
+                                                   g_str_equal, NULL));
+    g_assert_true(g_ptr_array_find_with_equal_func(s->binary,
+                                                   "binutils-sparc64-linux-gnu",
+                                                   g_str_equal, NULL));
     g_assert_cmpuint(g_list_length(s->files), ==, 3);
     g_assert_cmpuint(g_list_length(s->checksums_sha256), ==, 3);
 
     g_assert_nonnull(s = g_list_nth_data(list, 4));
     g_assert_cmpstr(s->package, ==, "base-files");
+    g_assert_cmpuint(s->binary->len, ==, 1);
     g_assert_cmpuint(g_list_length(s->files), ==, 2);
     g_assert_cmpuint(g_list_length(s->checksums_sha256), ==, 2);
 
     g_assert_nonnull(s = g_list_nth_data(list, 5));
     g_assert_cmpstr(s->package, ==, "aptitude");
+    g_assert_cmpuint(s->binary->len, ==, 11);
     g_assert_cmpuint(g_list_length(s->files), ==, 3);
     g_assert_nonnull(f = g_list_nth_data(s->files, 0));
     g_assert_cmpstr(f->name, ==, "aptitude_0.8.11-7.debian.tar.xz");
@@ -3021,6 +3296,8 @@ int main(int argc, char **argv)
                       test_apt_sources_free, teardown);
     g_test_add_vtable("/apt/sources/read/package", sizeof(struct state), NULL,
                       setup, test_apt_sources_read_package, teardown);
+    g_test_add_vtable("/apt/sources/read/binary", sizeof(struct state), NULL,
+                      setup, test_apt_sources_read_binary, teardown);
     g_test_add_vtable("/apt/sources/read/ignore", sizeof(struct state), NULL,
                       setup, test_apt_sources_read_ignore, teardown);
     g_test_add_vtable("/apt/sources/read/misc", sizeof(struct state), NULL,
