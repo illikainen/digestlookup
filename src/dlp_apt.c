@@ -1111,6 +1111,7 @@ static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
         s = sources->data;
 
         if (dlp_str_match_plain(regex, s->package) ||
+            dlp_str_match_parray(regex, s->binary) ||
             dlp_str_match_list(regex, s->checksums_sha256, offset)) {
             for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
                 f = elt->data;

@@ -15,6 +15,15 @@
 #define TEST_SHA256_FOO                                                        \
     "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
 
+#define TEST_SHA256_BINUTILS_DSC                                               \
+    "ec76c13684d922a3619d7ec982db191714927bde6de6a3ff89e95d1ce7a61f33"
+
+#define TEST_SHA256_BINUTILS_ORIG                                              \
+    "e398a2d579faa0f2b5a988add5f7481af8e21a21f63b6ea5702e6f517960c5eb"
+
+#define TEST_SHA256_BINUTILS_DEB                                               \
+    "15fc82a7c682da6bcbf56caf57da8f059655369cbfeb58b8312040e53e4fa11d"
+
 #define TEST_SHA256_LIBDISASM_DSC                                              \
     "576c7288395653bf3082e4a08db5215509eeaeae71b2de9099590a1224535981"
 
@@ -194,6 +203,9 @@ static void test_cli(gpointer data, gconstpointer user_data)
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr_unmatched("*ERROR*");
     g_test_trap_assert_stdout("* " TEST_SHA256_FOO " *");
+    g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_DSC " *");
+    g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_ORIG " *");
+    g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_DEB " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_LIBDISASM_DSC " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_LIBDISASM_ORIG " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_LIBDISASM_DEB " *");
@@ -254,8 +266,9 @@ static void test_cli_apt_success(gpointer data, gconstpointer user_data)
 {
     char *cfg;
     char *argv[] = {
-        "prog", "--config=test-cli", "--repos=test-cli-success",
-        "foo",  "libdisasm",         NULL,
+        "prog", "--config=test-cli",         "--repos=test-cli-success",
+        "foo",  "binutils-x86-64-linux-gnu", "libdisasm",
+        NULL,
     };
     struct subprocess *s = data;
 
