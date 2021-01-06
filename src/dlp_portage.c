@@ -18,6 +18,7 @@
 #include "dlp_gpg.h"
 #include "dlp_mem.h"
 #include "dlp_overflow.h"
+#include "dlp_str.h"
 
 #define dlp_portage_unexp_token(scan, exp_token)                               \
     g_scanner_unexp_token(scan, exp_token, NULL, NULL, NULL, G_STRLOC, true)
@@ -519,7 +520,6 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
                              const GPtrArray *regex, struct dlp_table *table,
                              GError **error)
 {
-    guint i;
     guint ntok;
     size_t len;
     char *buf = NULL;
@@ -532,7 +532,6 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
     struct archive_entry *entry = NULL;
     bool eof = false;
     bool rv = false;
-    GRegexMatchFlags flags = (GRegexMatchFlags)0;
 
     g_return_val_if_fail(cfg != NULL && tar != NULL, false);
     g_return_val_if_fail(regex != NULL && table != NULL, false);
@@ -557,28 +556,26 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
             g_strcmp0(tok[3], "Manifest") == 0) {
             pkg = g_strjoin("/", tok[1], tok[2], NULL);
 
-            for (i = 0; i < regex->len; i++) {
-                if (g_regex_match(regex->pdata[i], pkg, flags, NULL)) {
-                    if (!dlp_archive_read_text(archive, &buf, &len, error) ||
-                        !dlp_portage_manifest_read(buf, len, &mnfst, error)) {
-                        goto out;
-                    }
+            if (dlp_str_match_plain(regex, pkg)) {
+                if (!dlp_archive_read_text(archive, &buf, &len, error) ||
+                    !dlp_portage_manifest_read(buf, len, &mnfst, error)) {
+                    goto out;
+                }
 
-                    for (elt = mnfst; elt != NULL; elt = elt->next) {
-                        e = elt->data;
-                        if (e->type == DLP_PORTAGE_TYPE_DIST) {
-                            if (!dlp_table_add_row(table, error, "repository",
-                                                   cfg->name, "package", pkg,
-                                                   "file", e->file, "algorithm",
-                                                   "sha512", "digest",
-                                                   e->sha512, NULL)) {
-                                goto out;
-                            }
+                for (elt = mnfst; elt != NULL; elt = elt->next) {
+                    e = elt->data;
+                    if (e->type == DLP_PORTAGE_TYPE_DIST) {
+                        if (!dlp_table_add_row(table, error, "repository",
+                                               cfg->name, "package", pkg,
+                                               "file", e->file, "algorithm",
+                                               "sha512", "digest", e->sha512,
+                                               NULL)) {
+                            goto out;
                         }
                     }
-                    dlp_mem_free(&buf);
-                    dlp_portage_manifest_free(&mnfst);
                 }
+                dlp_mem_free(&buf);
+                dlp_portage_manifest_free(&mnfst);
             }
             dlp_mem_free(&pkg);
         }

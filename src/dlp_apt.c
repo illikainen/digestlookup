@@ -1100,40 +1100,25 @@ static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
                                  const GList *sources, const GPtrArray *regex,
                                  struct dlp_table *table, GError **error)
 {
-    guint i;
     GList *elt;
     struct dlp_apt_file *f;
     struct dlp_apt_source *s;
-    GRegex *rx;
-    GRegexMatchFlags flags = (GRegexMatchFlags)0;
-    bool match = false;
+    glong offset = G_STRUCT_OFFSET(struct dlp_apt_file, name);
 
     g_return_val_if_fail(cfg != NULL && regex != NULL && table != NULL, false);
 
     for (; sources != NULL; sources = sources->next) {
         s = sources->data;
 
-        for (i = 0; i < regex->len; i++) {
-            rx = regex->pdata[i];
-            if (!(match = g_regex_match(rx, s->package, flags, NULL))) {
-                for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
-                    f = elt->data;
-                    if ((match = g_regex_match(rx, f->name, flags, NULL))) {
-                        break;
-                    }
-                }
-            }
-
-            if (match) {
-                for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
-                    f = elt->data;
-                    if (!dlp_table_add_row(table, error, "repository",
-                                           cfg->name, "package", s->package,
-                                           "file", f->name, "algorithm",
-                                           "sha256", "digest", f->digest,
-                                           NULL)) {
-                        return false;
-                    }
+        if (dlp_str_match_plain(regex, s->package) ||
+            dlp_str_match_list(regex, s->checksums_sha256, offset)) {
+            for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
+                f = elt->data;
+                if (!dlp_table_add_row(table, error, "repository", cfg->name,
+                                       "package", s->package, "file", f->name,
+                                       "algorithm", "sha256", "digest",
+                                       f->digest, NULL)) {
+                    return false;
                 }
             }
         }
