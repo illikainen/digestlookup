@@ -61,6 +61,13 @@ add_pkg_config(TARGET test_obj SCOPE INTERFACE PKG libmicrohttpd REQUIRED)
 #
 # Fixtures.
 #
+add_test("fixture_gcov_setup" "${CMAKE_COMMAND}"
+    -D "QA_ACTION=gcov-setup"
+    -P "${qa}")
+set_tests_properties("fixture_gcov_setup" PROPERTIES
+    WORKING_DIRECTORY "${PROJECT_BINARY_DIR}"
+    FIXTURES_SETUP "fixture_gcov_setup")
+
 add_test("fixture_gcov_cleanup" "${CMAKE_COMMAND}"
     -D "QA_ACTION=gcov-cleanup"
     -D "QA_GCOV_COMPILER=${CMAKE_C_COMPILER_ID}"
@@ -110,6 +117,7 @@ foreach(file ${tests})
     set(fixtures
         "${fixture}_setup"
         "${fixture}_cleanup"
+        "fixture_gcov_setup"
         "fixture_gcov_cleanup")
     set_tests_properties("${bin}" PROPERTIES
         ENVIRONMENT "${env}"
@@ -141,6 +149,7 @@ if(CMAKE_C_COMPILER_ID STREQUAL Clang AND ${CMAKE_BUILD_TYPE} STREQUAL Debug)
         set(fixtures
             "${fixture}_setup"
             "${fixture}_cleanup"
+            "fixture_gcov_setup"
             "fixture_gcov_cleanup")
         set_tests_properties("${bin}" PROPERTIES
             ENVIRONMENT "${env}"
