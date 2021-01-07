@@ -18,6 +18,7 @@ struct dlp_opts {
     char **repos;
     char **patterns;
     GPtrArray *regex;
+    bool deep;
     bool verbose;
 };
 
