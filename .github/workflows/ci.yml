@@ -1,0 +1,38 @@
+name: ci
+on:
+  - push
+  - pull_request
+jobs:
+  debian-10-check-clang:
+    runs-on: ubuntu-18.04
+    container: debian:10
+    env:
+      CC: clang
+    steps:
+      - uses: actions/checkout@v2
+      - run: apt-get update
+      - run: |
+          apt-get -y install \
+            build-essential \
+            clang \
+            clang-format \
+            clang-tidy \
+            cmake \
+            cppcheck \
+            gcovr \
+            git \
+            libarchive-dev \
+            libcmocka-dev \
+            libcurl4-openssl-dev \
+            libglib2.0-dev \
+            libgpgme-dev \
+            liblzma-dev \
+            libmicrohttpd-dev \
+            llvm
+      - run: git init
+      - run: git add .
+      - run: useradd --user-group ci
+      - run: chown -R ci:ci .
+      - run: chmod -R u=rwX,g=,o= .
+      - run: su -c 'make check' ci
+      - run: chown -R 1001:116 .
