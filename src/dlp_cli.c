@@ -144,7 +144,7 @@ static void *dlp_cli_lookup(gpointer data)
     dlp_mem_free(&patterns);
 
     if (t->repo->backend->lookup != NULL &&
-        !t->repo->backend->lookup(t->repo, t->opts->regex, t->table, &t->err)) {
+        !t->repo->backend->lookup(t->repo, t->opts, t->table, &t->err)) {
         g_prefix_error(&t->err, "%s: ", t->repo->name);
         return GINT_TO_POINTER(false);
     }

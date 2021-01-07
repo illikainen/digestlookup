@@ -43,15 +43,17 @@ static bool dlp_portage_parse_digest(GScanner *scan,
                                      struct dlp_portage_entry *e) DLP_NODISCARD;
 static void dlp_portage_error(GScanner *scan, gchar *msg, gboolean error);
 static bool dlp_portage_lookup(const struct dlp_cfg_repo *cfg,
-                               const GPtrArray *regex, struct dlp_table *table,
+                               const struct dlp_opts *opts,
+                               struct dlp_table *table,
                                GError **error) DLP_NODISCARD;
 static bool dlp_portage_cleanup(const struct dlp_cfg_repo *cfg, const char *tar,
                                 const char *sig, GError **error) DLP_NODISCARD;
 static bool dlp_portage_download(const struct dlp_cfg_repo *cfg,
                                  const char *tar, const char *sig,
                                  GError **error) DLP_NODISCARD;
-static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
-                             const GPtrArray *regex, struct dlp_table *table,
+static bool dlp_portage_find(const struct dlp_cfg_repo *cfg,
+                             const struct dlp_opts *opts, const char *tar,
+                             struct dlp_table *table,
                              GError **error) DLP_NODISCARD;
 static void dlp_portage_ctor(void) DLP_CONSTRUCTOR;
 static void dlp_portage_dtor(void) DLP_DESTRUCTOR;
@@ -338,25 +340,25 @@ static void dlp_portage_error(GScanner *scan, gchar *msg, gboolean error)
  * Lookup one or more regular expressions.
  *
  * @param cfg   Configuration.
- * @param regex Regular expressions to lookup.
+ * @param opts  Lookup options.
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
 static bool dlp_portage_lookup(const struct dlp_cfg_repo *cfg,
-                               const GPtrArray *regex, struct dlp_table *table,
-                               GError **error)
+                               const struct dlp_opts *opts,
+                               struct dlp_table *table, GError **error)
 {
     bool rv;
     char *tar = NULL;
     char *sig = NULL;
 
-    g_return_val_if_fail(cfg != NULL && regex != NULL && table != NULL, false);
+    g_return_val_if_fail(cfg != NULL && opts != NULL && table != NULL, false);
 
     rv = dlp_fs_data_path(&tar, error, cfg->name, "portage.tar.xz", NULL) &&
          dlp_fs_data_path(&sig, error, cfg->name, "portage.tar.xz.sig", NULL) &&
          dlp_portage_cleanup(cfg, tar, sig, error) &&
          dlp_portage_download(cfg, tar, sig, error) &&
-         dlp_portage_find(cfg, tar, regex, table, error);
+         dlp_portage_find(cfg, opts, tar, table, error);
 
     dlp_mem_free(&tar);
     dlp_mem_free(&sig);
@@ -510,18 +512,19 @@ out:
  * Search a portage archive for an array of regular expressions.
  *
  * @param cfg   Configuration.
+ * @param opts  Lookup options.
  * @param tar   Path to the portage archive.
- * @param regex Regular expressions to search.
  * @param table Destination table for any matches.
  * @param error Optional error information.
  * @return True on success (including 0 matches) and false on failure.
  */
-static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
-                             const GPtrArray *regex, struct dlp_table *table,
-                             GError **error)
+static bool dlp_portage_find(const struct dlp_cfg_repo *cfg,
+                             const struct dlp_opts *opts, const char *tar,
+                             struct dlp_table *table, GError **error)
 {
     guint ntok;
     size_t len;
+    GPtrArray *regex;
     char *buf = NULL;
     char *pkg = NULL;
     char **tok = NULL;
@@ -533,8 +536,9 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg, const char *tar,
     bool eof = false;
     bool rv = false;
 
-    g_return_val_if_fail(cfg != NULL && tar != NULL, false);
-    g_return_val_if_fail(regex != NULL && table != NULL, false);
+    g_return_val_if_fail(cfg != NULL && opts != NULL, false);
+    g_return_val_if_fail(tar != NULL && table != NULL, false);
+    regex = opts->regex;
 
     if (!dlp_archive_read_new(&archive, error) ||
         !dlp_archive_read_format_tar(archive, error) ||

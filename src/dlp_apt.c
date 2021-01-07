@@ -58,7 +58,7 @@ static bool dlp_apt_parse_date(GScanner *scan, void *dst) DLP_NODISCARD;
 static bool dlp_apt_parse_ignore(GScanner *scan, void *dst) DLP_NODISCARD;
 static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error);
 static bool dlp_apt_lookup(const struct dlp_cfg_repo *cfg,
-                           const GPtrArray *regex, struct dlp_table *table,
+                           const struct dlp_opts *opts, struct dlp_table *table,
                            GError **error) DLP_NODISCARD;
 static bool dlp_apt_release_download(const char *path,
                                      const struct dlp_cfg_repo *cfg,
@@ -68,8 +68,8 @@ static bool dlp_apt_sources_download(const char *path,
                                      const struct dlp_apt_file *file,
                                      GError **error) DLP_NODISCARD;
 static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
-                                 const GList *sources, const GPtrArray *regex,
-                                 struct dlp_table *table,
+                                 const struct dlp_opts *opts,
+                                 const GList *sources, struct dlp_table *table,
                                  GError **error) DLP_NODISCARD;
 static void dlp_apt_ctor(void) DLP_CONSTRUCTOR;
 static void dlp_apt_dtor(void) DLP_DESTRUCTOR;
@@ -833,12 +833,12 @@ static void dlp_apt_error(GScanner *scan, gchar *msg, gboolean error)
  * Lookup one or more regular expressions.
  *
  * @param cfg   Configuration.
- * @param regex Regular expressions to lookup.
+ * @param opts  Lookup options.
  * @param error Optional error information.
  * @return True on success and false on failure.
  */
 static bool dlp_apt_lookup(const struct dlp_cfg_repo *cfg,
-                           const GPtrArray *regex, struct dlp_table *table,
+                           const struct dlp_opts *opts, struct dlp_table *table,
                            GError **error)
 {
     bool stale;
@@ -853,7 +853,7 @@ static bool dlp_apt_lookup(const struct dlp_cfg_repo *cfg,
     struct dlp_apt_release *release = NULL;
     struct dlp_apt_file *file = NULL;
 
-    g_return_val_if_fail(cfg != NULL && regex != NULL && table != NULL, false);
+    g_return_val_if_fail(cfg != NULL && opts != NULL && table != NULL, false);
 
     if (!dlp_fs_data_path(&path, error, cfg->name, "Release", NULL) ||
         !dlp_fs_stale_p(path, cfg->cache, &stale, error) ||
@@ -888,7 +888,7 @@ static bool dlp_apt_lookup(const struct dlp_cfg_repo *cfg,
                 !dlp_fs_mkstemp(&tmpfd, error) ||
                 !dlp_lzma_decompress(fd, tmpfd, error) ||
                 !dlp_apt_sources_read(tmpfd, &sources, error) ||
-                !dlp_apt_sources_find(cfg, sources, regex, table, error) ||
+                !dlp_apt_sources_find(cfg, opts, sources, table, error) ||
                 !dlp_fs_close(&fd, NULL) || !dlp_fs_close(&tmpfd, NULL)) {
                 break;
             }
@@ -1090,22 +1090,25 @@ out:
  * Search a list of source structures for an array of regular expressions.
  *
  * @param cfg       Configuration.
+ * @param opts      Lookup options.
  * @param sources   Source structures to search.
- * @param regex     Regular expressions to find.
  * @param table     Destination table for any matches.
  * @param error     Optional error information.
  * @return True on success (including 0 matches) and false on failure.
  */
 static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
-                                 const GList *sources, const GPtrArray *regex,
-                                 struct dlp_table *table, GError **error)
+                                 const struct dlp_opts *opts,
+                                 const GList *sources, struct dlp_table *table,
+                                 GError **error)
 {
     GList *elt;
+    GPtrArray *regex;
     struct dlp_apt_file *f;
     struct dlp_apt_source *s;
     glong offset = G_STRUCT_OFFSET(struct dlp_apt_file, name);
 
-    g_return_val_if_fail(cfg != NULL && regex != NULL && table != NULL, false);
+    g_return_val_if_fail(cfg != NULL && opts != NULL && table != NULL, false);
+    regex = opts->regex;
 
     for (; sources != NULL; sources = sources->next) {
         s = sources->data;

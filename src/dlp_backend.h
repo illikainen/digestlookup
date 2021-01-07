@@ -13,6 +13,7 @@
 
 #include "dlp.h"
 #include "dlp_cfg.h"
+#include "dlp_opts.h"
 #include "dlp_table.h"
 
 enum dlp_backend_error {
@@ -23,7 +24,7 @@ struct dlp_cfg_repo;
 
 struct dlp_backend {
     const char *name;
-    bool (*lookup)(const struct dlp_cfg_repo *cfg, const GPtrArray *regex,
+    bool (*lookup)(const struct dlp_cfg_repo *cfg, const struct dlp_opts *opts,
                    struct dlp_table *table, GError **error);
 };
 

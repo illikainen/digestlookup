@@ -1721,8 +1721,8 @@ static void test_apt_lookup_success(gpointer data, gconstpointer user_data)
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -1807,12 +1807,12 @@ static void test_apt_lookup_success(gpointer data, gconstpointer user_data)
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -1823,7 +1823,7 @@ static void test_apt_lookup_success(gpointer data, gconstpointer user_data)
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_no_error(err);
             g_assert_true(rv);
         }
@@ -1855,7 +1855,7 @@ static void test_apt_lookup_success(gpointer data, gconstpointer user_data)
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -1872,8 +1872,8 @@ static void test_apt_lookup_success_cache(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -1959,12 +1959,12 @@ static void test_apt_lookup_success_cache(gpointer data,
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -1975,7 +1975,7 @@ static void test_apt_lookup_success_cache(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_no_error(err);
             g_assert_true(rv);
         }
@@ -1992,7 +1992,7 @@ static void test_apt_lookup_success_cache(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_no_error(err);
             g_assert_true(rv);
         }
@@ -2024,7 +2024,7 @@ static void test_apt_lookup_success_cache(gpointer data,
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2040,8 +2040,8 @@ static void test_apt_lookup_success_stale(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -2127,12 +2127,12 @@ static void test_apt_lookup_success_stale(gpointer data,
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -2165,7 +2165,7 @@ static void test_apt_lookup_success_stale(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_no_error(err);
             g_assert_true(rv);
         }
@@ -2197,7 +2197,7 @@ static void test_apt_lookup_success_stale(gpointer data,
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2213,8 +2213,8 @@ static void test_apt_lookup_bad_release_url(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -2298,12 +2298,12 @@ static void test_apt_lookup_bad_release_url(gpointer data,
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -2314,7 +2314,7 @@ static void test_apt_lookup_bad_release_url(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, CURLE_GOT_NOTHING);
             g_assert_false(rv);
         }
@@ -2334,7 +2334,7 @@ static void test_apt_lookup_bad_release_url(gpointer data,
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2350,8 +2350,8 @@ static void test_apt_lookup_bad_sources_url(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -2435,12 +2435,12 @@ static void test_apt_lookup_bad_sources_url(gpointer data,
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -2451,7 +2451,7 @@ static void test_apt_lookup_bad_sources_url(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, CURLE_GOT_NOTHING);
             g_assert_false(rv);
         }
@@ -2472,7 +2472,7 @@ static void test_apt_lookup_bad_sources_url(gpointer data,
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2487,8 +2487,8 @@ static void test_apt_lookup_bad_sig(gpointer data, gconstpointer user_data)
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -2572,12 +2572,12 @@ static void test_apt_lookup_bad_sig(gpointer data, gconstpointer user_data)
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -2588,7 +2588,7 @@ static void test_apt_lookup_bad_sig(gpointer data, gconstpointer user_data)
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, GPG_ERR_NO_PUBKEY);
             g_assert_false(rv);
         }
@@ -2608,7 +2608,7 @@ static void test_apt_lookup_bad_sig(gpointer data, gconstpointer user_data)
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2623,8 +2623,8 @@ static void test_apt_lookup_bad_digest(gpointer data, gconstpointer user_data)
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -2708,12 +2708,12 @@ static void test_apt_lookup_bad_digest(gpointer data, gconstpointer user_data)
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -2724,7 +2724,7 @@ static void test_apt_lookup_bad_digest(gpointer data, gconstpointer user_data)
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_MISMATCH);
             g_assert_false(rv);
         }
@@ -2747,7 +2747,7 @@ static void test_apt_lookup_bad_digest(gpointer data, gconstpointer user_data)
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2764,8 +2764,8 @@ static void test_apt_lookup_bad_cache_digest(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -2849,12 +2849,12 @@ static void test_apt_lookup_bad_cache_digest(gpointer data,
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -2865,7 +2865,7 @@ static void test_apt_lookup_bad_cache_digest(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_no_error(err);
             g_assert_true(rv);
         }
@@ -2888,7 +2888,7 @@ static void test_apt_lookup_bad_cache_digest(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, DLP_DIGEST_ERROR_MISMATCH);
             g_assert_false(rv);
         }
@@ -2911,7 +2911,7 @@ static void test_apt_lookup_bad_cache_digest(gpointer data,
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
     g_ptr_array_unref(paths);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -2926,8 +2926,8 @@ static void test_apt_lookup_bad_row(gpointer data, gconstpointer user_data)
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -3009,12 +3009,12 @@ static void test_apt_lookup_bad_row(gpointer data, gconstpointer user_data)
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "foo", "bar", NULL);
@@ -3024,7 +3024,7 @@ static void test_apt_lookup_bad_row(gpointer data, gconstpointer user_data)
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-cfg") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, EINVAL);
             g_assert_false(rv);
         }
@@ -3034,7 +3034,7 @@ static void test_apt_lookup_bad_row(gpointer data, gconstpointer user_data)
     dlp_mem_free(&rls);
     dlp_mem_free(&maind);
     dlp_mem_free(&contrib);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
@@ -3047,8 +3047,8 @@ static void test_apt_lookup_bad_data_dir(gpointer data, gconstpointer user_data)
     struct dlp_cfg *cfg;
     struct dlp_backend *b;
     struct dlp_table *tbl;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     char *path = NULL;
     char *cfgdata = NULL;
@@ -3086,12 +3086,12 @@ static void test_apt_lookup_bad_data_dir(gpointer data, gconstpointer user_data)
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "foo", "bar", NULL);
@@ -3109,7 +3109,7 @@ static void test_apt_lookup_bad_data_dir(gpointer data, gconstpointer user_data)
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-bad-data-dir") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, EBADFD);
             g_assert_false(rv);
         }
@@ -3123,7 +3123,7 @@ static void test_apt_lookup_bad_data_dir(gpointer data, gconstpointer user_data)
     dlp_mem_free(&maind);
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
 }
@@ -3137,8 +3137,8 @@ static void test_apt_lookup_bad_source_dir(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
+    struct dlp_opts opts = { 0 };
     GRegex *rx;
-    GPtrArray *rxs;
     GList *repos;
     const char *key;
     const char *cert;
@@ -3223,12 +3223,12 @@ static void test_apt_lookup_bad_source_dir(gpointer data,
     g_assert_true(rv);
     g_assert_nonnull(b->lookup);
 
-    rxs = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
+    opts.regex = g_ptr_array_new_full(0, dlp_mem_regex_destroy);
     rx = g_regex_new("foo", (GRegexCompileFlags)0, (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
     rx = g_regex_new("libdisasm_.*orig", (GRegexCompileFlags)0,
                      (GRegexMatchFlags)0, NULL);
-    g_ptr_array_add(rxs, rx);
+    g_ptr_array_add(opts.regex, rx);
 
     dlp_table_init(&tbl);
     rv = dlp_table_add_columns(tbl, &err, "repository", "package", "file",
@@ -3248,7 +3248,7 @@ static void test_apt_lookup_bad_source_dir(gpointer data,
     for (repos = cfg->repos; repos != NULL; repos = repos->next) {
         struct dlp_cfg_repo *repo = repos->data;
         if (g_strcmp0(repo->name, "test-apt-lookup-bad-source-dir") == 0) {
-            rv = b->lookup(repo, rxs, tbl, &err);
+            rv = b->lookup(repo, &opts, tbl, &err);
             g_assert_error(err, DLP_ERROR, EBADFD);
             g_assert_false(rv);
         }
@@ -3263,7 +3263,7 @@ static void test_apt_lookup_bad_source_dir(gpointer data,
     dlp_mem_free(&maind);
     dlp_mem_free(&contrib);
     dlp_mem_free(&path);
-    g_ptr_array_unref(rxs);
+    g_ptr_array_unref(opts.regex);
     dlp_table_free(&tbl);
     dlp_cfg_free(&cfg);
     g_assert_true(dlp_mhd_stop(mhd));
