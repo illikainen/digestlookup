@@ -229,6 +229,13 @@ static void test_cli(gpointer data, gconstpointer user_data)
     g_test_trap_assert_passed();
     g_test_trap_assert_stderr_unmatched("*ERROR*");
     g_test_trap_assert_stdout("* " TEST_SHA512_FOO " *");
+    g_test_trap_assert_stdout_unmatched("* " TEST_SHA512_BAR " *");
+    g_test_trap_assert_stdout_unmatched("* " TEST_SHA512_QUUX " *");
+
+    g_test_trap_subprocess("/cli/subprocess/portage/success-deep", 0, flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr_unmatched("*ERROR*");
+    g_test_trap_assert_stdout("* " TEST_SHA512_FOO " *");
     g_test_trap_assert_stdout("* " TEST_SHA512_BAR " *");
     g_test_trap_assert_stdout("* " TEST_SHA512_QUUX " *");
 
@@ -408,18 +415,56 @@ static void test_cli_portage_success(gpointer data, gconstpointer user_data)
 {
     char *cfg;
     char *argv[] = {
-        "prog",
-        "--config=test-cli",
-        "--repos=test-cli-portage-success",
-        "foo",
-        "bar",
-        NULL,
+        "prog", "--config=test-cli", "--repos=test-cli-portage-success",
+        "foo",  "bar\\.tar\\.gz",    NULL,
     };
     struct subprocess *s = data;
 
     (void)user_data;
 
     cfg = g_strdup_printf("[test-cli-portage-success]\n"
+                          "backend = portage\n"
+                          "url = %s:%u\n"
+                          "ca-file = %s\n"
+                          "tls-key = "
+                          "sha256//hiC2YHsimS6rJ/RZ1OM3rbt1DFATF/"
+                          "o6fCDtm59VBQ8=\n"
+                          "verify-keys = %s\n"
+                          "user-agent = agent\n",
+                          s->host, s->port, s->cert, s->ed25519);
+    g_assert_true(g_file_set_contents("test-cli", cfg, -1, NULL));
+    dlp_mem_free(&cfg);
+
+    g_assert_true(
+        dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/portage-latest.tar.xz",
+                            "agent", s->portage_good_tar,
+                            s->portage_good_tar_size, 0, MHD_HTTP_OK, NULL));
+    g_assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1",
+                                      "/portage-latest.tar.xz.gpgsig", "agent",
+                                      s->portage_good_sig, 0, 0, MHD_HTTP_OK,
+                                      NULL));
+
+    g_assert_true(dlp_cli(G_N_ELEMENTS(argv) - 1, argv));
+}
+
+static void test_cli_portage_success_deep(gpointer data,
+                                          gconstpointer user_data)
+{
+    char *cfg;
+    char *argv[] = {
+        "prog",
+        "--config=test-cli",
+        "--repos=test-cli-portage-success-deep",
+        "--deep",
+        "foo",
+        "bar\\.tar\\.gz",
+        NULL,
+    };
+    struct subprocess *s = data;
+
+    (void)user_data;
+
+    cfg = g_strdup_printf("[test-cli-portage-success-deep]\n"
                           "backend = portage\n"
                           "url = %s:%u\n"
                           "ca-file = %s\n"
@@ -752,6 +797,9 @@ int main(int argc, char **argv)
     g_test_add_vtable("/cli/subprocess/portage/success",
                       sizeof(struct subprocess), NULL, setup_subprocess,
                       test_cli_portage_success, teardown_subprocess);
+    g_test_add_vtable("/cli/subprocess/portage/success-deep",
+                      sizeof(struct subprocess), NULL, setup_subprocess,
+                      test_cli_portage_success_deep, teardown_subprocess);
     g_test_add_vtable("/cli/subprocess/portage/success-cache",
                       sizeof(struct subprocess), NULL, setup_subprocess,
                       test_cli_portage_success_cache, teardown_subprocess);

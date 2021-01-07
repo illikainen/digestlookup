@@ -524,6 +524,7 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg,
 {
     guint ntok;
     size_t len;
+    bool deep;
     GPtrArray *regex;
     char *buf = NULL;
     char *pkg = NULL;
@@ -533,12 +534,14 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg,
     struct dlp_portage_entry *e = NULL;
     struct archive *archive = NULL;
     struct archive_entry *entry = NULL;
+    glong offset = G_STRUCT_OFFSET(struct dlp_portage_entry, file);
     bool eof = false;
     bool rv = false;
 
     g_return_val_if_fail(cfg != NULL && opts != NULL, false);
     g_return_val_if_fail(tar != NULL && table != NULL, false);
     regex = opts->regex;
+    deep = opts->deep;
 
     if (!dlp_archive_read_new(&archive, error) ||
         !dlp_archive_read_format_tar(archive, error) ||
@@ -560,12 +563,13 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg,
             g_strcmp0(tok[3], "Manifest") == 0) {
             pkg = g_strjoin("/", tok[1], tok[2], NULL);
 
-            if (dlp_str_match_plain(regex, pkg)) {
-                if (!dlp_archive_read_text(archive, &buf, &len, error) ||
-                    !dlp_portage_manifest_read(buf, len, &mnfst, error)) {
-                    goto out;
-                }
+            if (!dlp_archive_read_text(archive, &buf, &len, error) ||
+                !dlp_portage_manifest_read(buf, len, &mnfst, error)) {
+                goto out;
+            }
 
+            if (dlp_str_match_plain(regex, pkg) ||
+                (deep && dlp_str_match_list(regex, mnfst, offset))) {
                 for (elt = mnfst; elt != NULL; elt = elt->next) {
                     e = elt->data;
                     if (e->type == DLP_PORTAGE_TYPE_DIST ||
@@ -579,10 +583,11 @@ static bool dlp_portage_find(const struct dlp_cfg_repo *cfg,
                         }
                     }
                 }
-                dlp_mem_free(&buf);
-                dlp_portage_manifest_free(&mnfst);
             }
+
+            dlp_mem_free(&buf);
             dlp_mem_free(&pkg);
+            dlp_portage_manifest_free(&mnfst);
         }
         g_strfreev(g_steal_pointer(&tok));
     }
