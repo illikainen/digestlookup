@@ -19,6 +19,7 @@ jobs:
             clang-tidy \
             cmake \
             cppcheck \
+            curl \
             gcovr \
             git \
             libarchive-dev \
@@ -36,3 +37,7 @@ jobs:
       - run: chmod -R u=rwX,g=,o= .
       - run: su -c 'make check' ci
       - run: chown -R 1001:116 .
+      - uses: codecov/codecov-action@v1
+        with:
+          gcov_executable: llvm-cov gcov
+          fail_ci_if_error: true
