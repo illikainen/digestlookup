@@ -1,3 +1,6 @@
+![build](https://github.com/illikainen/digestlookup/workflows/ci/badge.svg)
+![coverage](https://codecov.io/github/illikainen/digestlookup/coverage.svg)
+
 About
 =====
 
