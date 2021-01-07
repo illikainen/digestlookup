@@ -1721,7 +1721,7 @@ static void test_apt_lookup_success(gpointer data, gconstpointer user_data)
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
-    struct dlp_opts opts = { 0 };
+    struct dlp_opts opts = { .deep = true };
     GRegex *rx;
     GList *repos;
     const char *key;
@@ -1872,7 +1872,7 @@ static void test_apt_lookup_success_cache(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
-    struct dlp_opts opts = { 0 };
+    struct dlp_opts opts = { .deep = true };
     GRegex *rx;
     GList *repos;
     const char *key;
@@ -2040,7 +2040,7 @@ static void test_apt_lookup_success_stale(gpointer data,
     struct dlp_backend *b;
     struct dlp_table *tbl;
     struct dlp_mhd *mhd;
-    struct dlp_opts opts = { 0 };
+    struct dlp_opts opts = { .deep = true };
     GRegex *rx;
     GList *repos;
     const char *key;

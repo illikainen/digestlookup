@@ -206,6 +206,17 @@ static void test_cli(gpointer data, gconstpointer user_data)
     g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_DSC " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_ORIG " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_DEB " *");
+    g_test_trap_assert_stdout_unmatched("* " TEST_SHA256_LIBDISASM_DSC " *");
+    g_test_trap_assert_stdout_unmatched("* " TEST_SHA256_LIBDISASM_ORIG " *");
+    g_test_trap_assert_stdout_unmatched("* " TEST_SHA256_LIBDISASM_DEB " *");
+
+    g_test_trap_subprocess("/cli/subprocess/apt/success-deep", 0, flags);
+    g_test_trap_assert_passed();
+    g_test_trap_assert_stderr_unmatched("*ERROR*");
+    g_test_trap_assert_stdout("* " TEST_SHA256_FOO " *");
+    g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_DSC " *");
+    g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_ORIG " *");
+    g_test_trap_assert_stdout("* " TEST_SHA256_BINUTILS_DEB " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_LIBDISASM_DSC " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_LIBDISASM_ORIG " *");
     g_test_trap_assert_stdout("* " TEST_SHA256_LIBDISASM_DEB " *");
@@ -267,7 +278,52 @@ static void test_cli_apt_success(gpointer data, gconstpointer user_data)
     char *cfg;
     char *argv[] = {
         "prog", "--config=test-cli",         "--repos=test-cli-success",
-        "foo",  "binutils-x86-64-linux-gnu", "libdisasm",
+        "foo",  "binutils-x86-64-linux-gnu", "libdisasm.*\\.tar\\.gz",
+        NULL,
+    };
+    struct subprocess *s = data;
+
+    (void)user_data;
+
+    cfg = g_strdup_printf("[test-cli-success]\n"
+                          "backend = apt\n"
+                          "url = %s:%u\n"
+                          "ca-file = %s\n"
+                          "tls-key = "
+                          "sha256//hiC2YHsimS6rJ/RZ1OM3rbt1DFATF/"
+                          "o6fCDtm59VBQ8=\n"
+                          "verify-keys = %s\n"
+                          "user-agent = agent\n",
+                          s->host, s->port, s->cert, s->ed25519);
+    g_assert_true(g_file_set_contents("test-cli", cfg, -1, NULL));
+    dlp_mem_free(&cfg);
+
+    g_assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1", "/InRelease",
+                                      "agent", s->apt_release, 0, 0,
+                                      MHD_HTTP_OK, NULL));
+    g_assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1",
+                                      "/main/source/Sources.xz", "agent",
+                                      s->apt_main, s->apt_main_size, 0,
+                                      MHD_HTTP_OK, NULL));
+    g_assert_true(dlp_mhd_session_add(s->mhd, "GET", "HTTP/1.1",
+                                      "/contrib/source/Sources.xz", "agent",
+                                      s->apt_contrib, s->apt_contrib_size, 0,
+                                      MHD_HTTP_OK, NULL));
+
+    g_assert_true(dlp_cli(G_N_ELEMENTS(argv) - 1, argv));
+}
+
+static void test_cli_apt_success_deep(gpointer data, gconstpointer user_data)
+{
+    char *cfg;
+    char *argv[] = {
+        "prog",
+        "--config=test-cli",
+        "--repos=test-cli-success",
+        "--deep",
+        "foo",
+        "binutils-x86-64-linux-gnu",
+        "libdisasm.*\\.tar\\.gz",
         NULL,
     };
     struct subprocess *s = data;
@@ -687,6 +743,9 @@ int main(int argc, char **argv)
     g_test_add_vtable("/cli/subprocess/apt/success", sizeof(struct subprocess),
                       NULL, setup_subprocess, test_cli_apt_success,
                       teardown_subprocess);
+    g_test_add_vtable("/cli/subprocess/apt/success-deep",
+                      sizeof(struct subprocess), NULL, setup_subprocess,
+                      test_cli_apt_success_deep, teardown_subprocess);
     g_test_add_vtable("/cli/subprocess/apt/bad-signature",
                       sizeof(struct subprocess), NULL, setup_subprocess,
                       test_cli_apt_bad_signature, teardown_subprocess);

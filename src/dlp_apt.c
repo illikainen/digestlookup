@@ -1101,6 +1101,7 @@ static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
                                  const GList *sources, struct dlp_table *table,
                                  GError **error)
 {
+    bool deep;
     GList *elt;
     GPtrArray *regex;
     struct dlp_apt_file *f;
@@ -1109,13 +1110,14 @@ static bool dlp_apt_sources_find(const struct dlp_cfg_repo *cfg,
 
     g_return_val_if_fail(cfg != NULL && opts != NULL && table != NULL, false);
     regex = opts->regex;
+    deep = opts->deep;
 
     for (; sources != NULL; sources = sources->next) {
         s = sources->data;
 
         if (dlp_str_match_plain(regex, s->package) ||
             dlp_str_match_parray(regex, s->binary) ||
-            dlp_str_match_list(regex, s->checksums_sha256, offset)) {
+            (deep && dlp_str_match_list(regex, s->checksums_sha256, offset))) {
             for (elt = s->checksums_sha256; elt != NULL; elt = elt->next) {
                 f = elt->data;
                 if (!dlp_table_add_row(table, error, "repository", cfg->name,
