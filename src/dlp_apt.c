@@ -284,7 +284,7 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
 
         nexttok = g_scanner_peek_next_token(scan);
         if (nexttok == G_TOKEN_CHAR && scan->next_value.v_char == '\n') {
-            g_scanner_get_next_token(scan);
+            tok = g_scanner_get_next_token(scan);
 
             *sources = g_list_prepend(*sources, data.dst);
             data.dst = dlp_mem_alloc(sizeof(struct dlp_apt_source));
@@ -787,7 +787,7 @@ static bool dlp_apt_parse_ignore(GScanner *scan, void *dst)
 
     while ((tok = g_scanner_peek_next_token(scan)) != G_TOKEN_EOF) {
         if (tok == G_TOKEN_ERROR) {
-            g_scanner_get_next_token(scan);
+            DLP_DISCARD(g_scanner_get_next_token(scan));
             dlp_apt_unexp_token(scan, G_TOKEN_IDENTIFIER);
             return false;
         }
@@ -801,7 +801,7 @@ static bool dlp_apt_parse_ignore(GScanner *scan, void *dst)
             return true;
         }
 
-        g_scanner_get_next_token(scan);
+        DLP_DISCARD(g_scanner_get_next_token(scan));
     }
 
     return true;
