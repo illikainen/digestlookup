@@ -6,6 +6,8 @@
 
 #include "dlp_cli.h"
 
+#include <sys/stat.h>
+
 #include <glib.h>
 #include <glib/gi18n.h>
 
@@ -50,6 +52,9 @@ bool dlp_cli(int argc, char **argv)
     bool rv = false;
 
     g_return_val_if_fail(argc > 0 && argv != NULL, false);
+
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    umask(S_IRWXG | S_IRWXO);
 
     if (!dlp_gpg_global_init(&err) || !dlp_curl_global_init(&err)) {
         goto out;
