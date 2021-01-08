@@ -644,6 +644,13 @@ bool dlp_fs_mkstemp(int *fd, GError **error)
     tmp = g_build_filename(cache, "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", NULL);
     dlp_mem_free(&cache);
 
+    /*
+     * Setting the umask here is somewhat unnecessary because it's set when the
+     * process starts.  The reason for setting it here is to silence coverity
+     * and to avoid future bugs if code elsewhere is rewritten.
+     */
+    umask(S_IRWXG | S_IRWXO); /* NOLINT(hicpp-signed-bitwise) */
+
     errno = 0;
     if ((*fd = mkstemp(tmp)) == -1) {
         g_set_error(error, DLP_ERROR, errno, "%s: %s", tmp, g_strerror(errno));
