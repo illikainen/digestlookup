@@ -39,6 +39,9 @@ bool test_setup_home(char **path)
 {
     char *p;
 
+    /* NOLINTNEXTLINE(hicpp-signed-bitwise) */
+    umask(S_IRWXG | S_IRWXO);
+
     if ((p = getenv("DLP_TEST_HOME")) != NULL) {
         if ((p = strdup(p)) == NULL || g_strcmp0(p, getenv("HOME")) != 0 ||
             g_strcmp0(p, g_get_home_dir()) != 0 || !dlp_fs_mkdir(p, NULL)) {
