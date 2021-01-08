@@ -1,13 +1,3 @@
-extraction:
-  cpp:
-    prepare:
-      packages:
-        - libarchive-dev
-        - libcmocka-dev
-        - libcurl4-openssl-dev
-        - libglib2.0-dev
-        - libgpgme-dev
-        - liblzma-dev
-        - libmicrohttpd-dev
 queries:
+  - include: '*'
   - exclude: cpp/fixme-comment
