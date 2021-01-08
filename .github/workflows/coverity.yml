@@ -1,6 +1,7 @@
 name: coverity
 on:
-  - push
+  schedule:
+    - cron: '0 16 * * *'
 env:
   COVERITY_EMAIL: hji@dyntopia.com
   COVERITY_URL: https://scan.coverity.com
