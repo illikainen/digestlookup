@@ -1,0 +1,51 @@
+name: coverity
+on:
+  - push
+env:
+  COVERITY_EMAIL: hji@dyntopia.com
+  COVERITY_URL: https://scan.coverity.com
+  COVERITY_CACERT: /etc/ssl/certs/Entrust_Root_Certification_Authority_-_G2.pem
+  COVERITY_CAPATH: enoent
+  COVERITY_TOKEN: ${{ secrets.COVERITY_TOKEN }}
+jobs:
+  coverity:
+    runs-on: ubuntu-18.04
+    container: debian:10
+    steps:
+      - uses: actions/checkout@v2
+      - run: apt-get update
+      - run: |
+          apt-get -y install \
+            build-essential \
+            clang \
+            cmake \
+            curl \
+            libarchive-dev \
+            libcmocka-dev \
+            libcurl4-openssl-dev \
+            libglib2.0-dev \
+            libgpgme-dev \
+            liblzma-dev \
+            libmicrohttpd-dev
+      - run: |
+          curl --fail-early \
+            -o cov-tool.tar.gz \
+            --cacert "${COVERITY_CACERT}" \
+            --capath "${COVERITY_CAPATH}" \
+            --data "token=${COVERITY_TOKEN}" \
+            --data "project=${GITHUB_REPOSITORY}" \
+            "${COVERITY_URL}/download/cxx/linux64"
+      - run: mkdir cov-tool
+      - run: tar -xzf cov-tool.tar.gz --strip 1 -C cov-tool
+      - run: ./cov-tool/bin/cov-build --dir cov-int make
+      - run: tar -czf cov-int.tar.gz cov-int
+      - run: |
+          curl --fail-early \
+            --cacert "${COVERITY_CACERT}" \
+            --capath "${COVERITY_CAPATH}" \
+            --form "token=${COVERITY_TOKEN}" \
+            --form "email=${COVERITY_EMAIL}" \
+            --form "file=@cov-int.tar.gz" \
+            --form "version=${GITHUB_SHA}" \
+            --form "description=${GITHUB_REPOSITORY}" \
+            "${COVERITY_URL}/builds?project=${GITHUB_REPOSITORY}"
