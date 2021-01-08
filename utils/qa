@@ -66,7 +66,11 @@ class CppCheck(Backend):
             "--error-exitcode=1",
             "--inline-suppr",
             "--template=gcc",
-            *[f"--library={c}" for c in cfg],
+            *[
+                f"--library={c}"
+                for c in cfg
+                if sys.platform == "win32" or c.name != "windows.cfg"
+            ],
             *self.sources,
             *self.headers,
         )
