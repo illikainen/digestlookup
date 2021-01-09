@@ -145,7 +145,7 @@ bool dlp_apt_release_read(int fd, struct dlp_apt_release **release,
     data.dst = dlp_mem_alloc(sizeof(struct dlp_apt_release));
 
     scan = g_scanner_new(&dlp_apt_config);
-    scan->user_data = &data;
+    scan->user_data = &data; /* lgtm[cpp/stack-address-escape] */
     scan->msg_handler = dlp_apt_error;
     g_scanner_input_file(scan, fd);
 
@@ -271,7 +271,7 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
     data.dst = dlp_mem_alloc(sizeof(struct dlp_apt_source));
 
     scan = g_scanner_new(&dlp_apt_config);
-    scan->user_data = &data;
+    scan->user_data = &data; /* lgtm[cpp/stack-address-escape] */
     scan->msg_handler = dlp_apt_error;
     g_scanner_input_file(scan, fd);
 
