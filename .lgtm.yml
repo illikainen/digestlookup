@@ -1,3 +1,5 @@
 queries:
   - include: '*'
   - exclude: cpp/fixme-comment
+  - exclude: cpp/irregular-enum-init
+  - exclude: cpp/poorly-documented-function
