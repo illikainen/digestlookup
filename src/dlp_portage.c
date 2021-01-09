@@ -98,7 +98,7 @@ bool dlp_portage_manifest_read(const char *data, size_t len, GList **manifest,
     }
 
     scan = g_scanner_new(&dlp_portage_config);
-    scan->user_data = error;
+    scan->user_data = error; /* lgtm[cpp/stack-address-escape] */
     scan->msg_handler = dlp_portage_error;
 
     g_scanner_scope_add_symbol(scan, 0, "DIST",
