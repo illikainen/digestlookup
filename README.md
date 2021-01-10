@@ -1,5 +1,7 @@
 ![build](https://github.com/illikainen/digestlookup/workflows/ci/badge.svg)
 ![coverage](https://codecov.io/github/illikainen/digestlookup/coverage.svg)
+![coverity](https://scan.coverity.com/projects/22409/badge.svg)
+![lgtm](https://img.shields.io/lgtm/alerts/github/illikainen/digestlookup.svg)
 
 About
 =====
