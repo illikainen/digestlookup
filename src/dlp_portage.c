@@ -223,9 +223,9 @@ static bool dlp_portage_parse_file(GScanner *scan, struct dlp_portage_entry *e)
     g_return_val_if_fail(scan != NULL && e != NULL, false);
 
     scan->config->cset_identifier_first = G_CSET_A_2_Z G_CSET_a_2_z
-        G_CSET_DIGITS "._-";
+        G_CSET_DIGITS "._-{}?=";
     scan->config->cset_identifier_nth = G_CSET_A_2_Z G_CSET_a_2_z G_CSET_DIGITS
-        "._-/%@!+~{}()[]";
+        "._-/%@!+~{}()[]?=";
     tok = g_scanner_get_next_token(scan);
     *scan->config = dlp_portage_config;
 
