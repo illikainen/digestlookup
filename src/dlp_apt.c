@@ -222,6 +222,7 @@ bool dlp_apt_sources_read(int fd, GList **sources, GError **error)
           .offset = G_STRUCT_OFFSET(struct dlp_apt_source, checksums_sha256),
           .required = true },
         { .name = "Comment",                  .fn = dlp_apt_parse_ignore },
+        { .name = "Description",              .fn = dlp_apt_parse_ignore },
         { .name = "Dgit",                     .fn = dlp_apt_parse_ignore },
         { .name = "Directory",                .fn = dlp_apt_parse_ignore },
         { .name = "Dm-Upload-Allowed",        .fn = dlp_apt_parse_ignore },
